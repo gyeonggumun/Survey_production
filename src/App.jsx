@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
-  Bell,
   Check,
   ChevronRight,
   CircleHelp,
@@ -11,6 +10,7 @@ import {
   FileText,
   LayoutDashboard,
   LifeBuoy,
+  LogOut,
   Menu,
   MoreHorizontal,
   Plus,
@@ -21,6 +21,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { useAuth } from './auth/AuthContext.jsx';
 
 const navigation = [
   { to: '/', label: '대시보드', icon: LayoutDashboard, end: true },
@@ -74,11 +75,32 @@ const statusLabels = {
 
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
+  const { user, signOut } = useAuth();
   const location = useLocation();
+  const accountEmail = user?.email?.trim() || '내 계정';
+  const accountName = accountEmail.includes('@') ? accountEmail.split('@')[0] : accountEmail;
+  const accountInitial = accountName.slice(0, 1).toLocaleUpperCase('ko-KR') || 'M';
 
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    setSignOutError('');
+
+    try {
+      const { error } = await signOut();
+      if (error) setSignOutError('로그아웃에 실패했어요. 다시 시도해 주세요.');
+    } catch {
+      setSignOutError('로그아웃에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   const pageTitle = location.pathname.startsWith('/surveys/new')
     ? '새 설문'
@@ -158,19 +180,30 @@ function App() {
         <div className="sidebar-help-card">
           <div className="help-card-icon"><LifeBuoy size={17} aria-hidden="true" /></div>
           <strong>차근차근 만들어가요</strong>
-          <p>지금은 기본 화면을 준비하고 있어요. 다음 단계에서 실제 기능을 연결합니다.</p>
+          <p>기본 화면과 계정 인증을 연결했어요. 다음 단계에서 설문 제작과 응답 기능을 만들어요.</p>
           <Link to="/settings" className="help-card-link">
             개발 단계 보기 <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </div>
 
         <div className="sidebar-account">
-          <div className="account-avatar" aria-hidden="true">모</div>
+          <div className="account-avatar" aria-hidden="true">{accountInitial}</div>
           <div className="account-copy">
-            <strong>미리보기 모드</strong>
-            <span>로그인 기능 준비 중</span>
+            <strong title={accountEmail}>{accountName}</strong>
+            <span className={signOutError ? 'account-signout-error' : ''} role={signOutError ? 'status' : undefined} aria-live={signOutError ? 'polite' : undefined}>
+              {signOutError || '로그인됨'}
+            </span>
           </div>
-          <MoreHorizontal size={19} className="account-more" aria-hidden="true" />
+          <button
+            className="icon-button account-logout"
+            type="button"
+            aria-label="로그아웃"
+            title="로그아웃"
+            disabled={isSigningOut}
+            onClick={handleSignOut}
+          >
+            <LogOut size={16} aria-hidden="true" />
+          </button>
         </div>
       </aside>
 
@@ -193,12 +226,19 @@ function App() {
             </div>
           </div>
           <div className="topbar-actions">
-            <span className="preview-indicator"><span /> 미리보기</span>
+            <span className="preview-indicator"><span /> 데이터 미리보기</span>
             <Link className="icon-button topbar-help" to="/settings" aria-label="도움말 및 개발 단계">
               <CircleHelp size={19} />
             </Link>
-            <button className="topbar-avatar" type="button" aria-label="로그인 기능 준비 중" title="로그인 기능 준비 중">
-              모
+            <button
+              className="icon-button topbar-logout"
+              type="button"
+              aria-label="로그아웃"
+              title="로그아웃"
+              disabled={isSigningOut}
+              onClick={handleSignOut}
+            >
+              <LogOut size={17} aria-hidden="true" />
             </button>
           </div>
         </header>
@@ -250,8 +290,8 @@ function App() {
                   icon={Settings2}
                   eyebrow="개발 단계"
                   title="모아 설문을 순서대로 만들고 있어요"
-                  description="먼저 기본 화면과 반응형 틀을 마련했습니다. 다음으로 인증, 설문 제작, 응답 수집, 결과 확인을 차례로 구현합니다."
-                  step="1단계 · 기본 화면"
+                  description="기본 화면과 Supabase 인증을 연결했습니다. 다음으로 설문 제작, 응답 수집, 결과 확인을 차례로 구현합니다."
+                  step="2단계 · 인증 완료"
                   showRoadmap
                 />
               )}
@@ -378,15 +418,15 @@ function GettingStartedCard() {
       <ol className="roadmap-list">
         <li className="roadmap-current">
           <span className="roadmap-marker"><Check size={13} aria-hidden="true" /></span>
-          <span><strong>기본 화면과 반응형 틀</strong><small>현재 단계 · 완료</small></span>
+          <span><strong>기본 화면과 반응형 틀</strong><small>완료</small></span>
         </li>
         <li>
           <span className="roadmap-marker roadmap-number">2</span>
-          <span><strong>계정과 로그인</strong><small>다음 단계</small></span>
+          <span><strong>계정과 로그인</strong><small>완료</small></span>
         </li>
         <li>
           <span className="roadmap-marker roadmap-number">3</span>
-          <span><strong>설문 제작과 응답</strong><small>데이터 저장 연결</small></span>
+          <span><strong>설문 제작과 응답</strong><small>다음 단계</small></span>
         </li>
       </ol>
       <Link to="/settings" className="text-link">
@@ -547,7 +587,7 @@ function FeaturePlaceholder({ icon: Icon, eyebrow, title, description, step, sho
           <Link to="/" className="button button-primary">대시보드로 돌아가기 <ArrowRight size={16} aria-hidden="true" /></Link>
           <Link to="/surveys" className="button button-outline">내 설문 보기</Link>
         </div>
-        <div className="placeholder-footnote"><CircleHelp size={15} aria-hidden="true" /> 아직 계정이나 설문 데이터가 저장되지 않습니다.</div>
+        <div className="placeholder-footnote"><CircleHelp size={15} aria-hidden="true" /> 아직 설문 데이터가 연결되거나 저장되지 않습니다.</div>
       </div>
       {showRoadmap && <RoadmapPanel />}
     </section>
@@ -557,7 +597,7 @@ function FeaturePlaceholder({ icon: Icon, eyebrow, title, description, step, sho
 function RoadmapPanel() {
   const steps = [
     { number: '01', title: '기본 화면과 반응형 틀', detail: 'React · JSX · 라우팅', complete: true },
-    { number: '02', title: '회원가입과 로그인', detail: 'Supabase Auth', complete: false },
+    { number: '02', title: '회원가입과 로그인', detail: 'Supabase Auth', complete: true },
     { number: '03', title: '설문 제작과 발행', detail: '질문 편집 · 공개 링크', complete: false },
     { number: '04', title: '응답 수집과 결과', detail: '응답 저장 · 통계 확인', complete: false },
     { number: '05', title: '보안 점검과 배포', detail: 'RLS · Vercel', complete: false },
@@ -567,7 +607,7 @@ function RoadmapPanel() {
     <div className="roadmap-panel">
       <div className="roadmap-panel-heading">
         <div><span className="section-kicker">MVP ROADMAP</span><h2>순서대로 진행할게요</h2></div>
-        <span className="roadmap-progress-label">1 / 5 단계</span>
+        <span className="roadmap-progress-label">2 / 5 단계</span>
       </div>
       <div className="roadmap-steps">
         {steps.map((step) => (
