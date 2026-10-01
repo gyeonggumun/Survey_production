@@ -1,6 +1,7 @@
 import { ArrowLeft, BarChart3, ClipboardList, Home } from 'lucide-react';
 import { Link, Route, Routes } from 'react-router-dom';
-import { ResultsDetailPage, ResultsIndexPage, SurveyEditorPage, SurveyListPage, SurveyPreviewPage, SurveyResponsesPage } from './SurveyPages.jsx';
+import { ResultsDetailPage, ResultsIndexPage, SurveyListPage, SurveyPreviewPage, SurveyResponsesPage } from './SurveyPages.jsx';
+import SurveyEditorPage from './SurveyEditorPage.jsx';
 import PublicSurveyPage from './PublicSurveyPage.jsx';
 import './surveys.css';
 import './results.css';
