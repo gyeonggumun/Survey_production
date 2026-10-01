@@ -29,10 +29,10 @@ VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 DB 변경의 기준은 `supabase/migrations/`입니다. 마이그레이션은 파일명의 순서대로 적용됩니다.
 
 1. `20261001020541_create_survey_schema.sql` — 설문·질문 테이블과 RLS
-2. `20261001020550_repair_question_sorting.sql` — 기존 질문 순서 복구 및 고유 인덱스
-3. `20261001020600_add_public_survey_responses.sql` — 응답·답변 테이블과 검증 제출 RPC
-4. `20261001020610_preserve_response_history_and_save_questions.sql` — 질문 원자 저장, 응답 이력 보호
-5. `20261001020620_validate_published_surveys.sql` — DB 차원의 발행 설문 유효성 검증
+2. `20261001075516_repair_question_sorting.sql` — 기존 질문 순서 복구 및 고유 인덱스
+3. `20261001075705_add_public_survey_responses.sql` — 응답·답변 테이블과 검증 제출 RPC
+4. `20261001075950_preserve_response_history_and_save_questions.sql` — 질문 원자 저장, 응답 이력 보호
+5. `20261001080506_validate_published_surveys.sql` — 기존 발행 설문 검사와 동시 변경을 고려한 DB 유효성 검증
 
 기존 `supabase/schema.sql`은 핵심 설문 테이블에 대한 이전 수동 설치용 참고 파일이며, 응답 저장까지 포함한 현재 전체 설치에서는 실행하지 마세요.
 
@@ -78,7 +78,7 @@ GitHub `gyeonggumun/Survey_production`의 `main` 브랜치를 Vercel 프로젝�
 
 ## 테스트 및 배포 전 확인
 
-사용자가 로컬에서 코드 실행과 확인을 완료했다고 알려주었습니다. 이 작업 환경에서는 별도의 빌드, 브라우저, Supabase Dashboard/CLI, Vercel 검증을 수행하지 않았습니다. SQL 적용과 실행 환경에서의 빌드·브라우저 검증은 완료로 간주하지 않습니다. 오류가 있으면 오류 메시지와 재현 순서를 기준으로 수정합니다.
+2026-10-01 기준 연결된 Supabase 프로젝트에는 위 마이그레이션 5개가 적용되어 있습니다. 네 테이블의 RLS, 응답·질문 저장 함수와 발행 검증 트리거를 확인했고, 기존 발행 설문도 적용 과정에서 유효성 검사를 통과했습니다. 실제 사용자 계정으로 응답 제출·결과 조회를 끝까지 검증한 것은 아니므로 배포 후 위 흐름을 직접 확인하세요.
 
 ## GitHub에 올리기 전 비밀 파일 이중 점검
 
