@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import App from '../App.jsx';
+import SurveyFlow from '../surveys/SurveyFlow.jsx';
 import { useAuth } from './AuthContext.jsx';
 import AuthPage from './AuthPage.jsx';
 
@@ -30,6 +31,9 @@ export default function AuthGate() {
   if (!user) {
     return <Navigate to="/auth" replace state={{ from: location }} />;
   }
+
+  // 설문 제작과 관리는 데이터베이스에 연결된 MVP 화면을 사용합니다.
+  if (/^\/surveys(?:\/|$)/.test(location.pathname)) return <SurveyFlow />;
 
   return <App />;
 }

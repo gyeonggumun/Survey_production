@@ -180,7 +180,7 @@ function App() {
         <div className="sidebar-help-card">
           <div className="help-card-icon"><LifeBuoy size={17} aria-hidden="true" /></div>
           <strong>차근차근 만들어가요</strong>
-          <p>기본 화면과 계정 인증을 연결했어요. 다음 단계에서 설문 제작과 응답 기능을 만들어요.</p>
+          <p>설문 제작과 저장을 연결했어요. 다음에는 공개 응답 링크와 응답 수집을 만들어요.</p>
           <Link to="/settings" className="help-card-link">
             개발 단계 보기 <ArrowRight size={14} aria-hidden="true" />
           </Link>
@@ -254,8 +254,8 @@ function App() {
                   icon={FilePlus2}
                   eyebrow="설문 제작"
                   title="질문을 담을 준비를 하고 있어요"
-                  description="설문 편집기는 다음 개발 단계에서 만들 예정입니다. 이 단계에서는 화면 구성과 이동 흐름을 먼저 확인할 수 있어요."
-                  step="다음 단계"
+                  description="설문 편집기는 별도 화면에서 사용할 수 있어요. 이 안내는 이전 미리보기 화면이며, 로그인한 사용자의 실제 설문 기능은 내 설문 메뉴에 연결되어 있습니다."
+                  step="설문 편집기 사용"
                 />
               )}
             />
@@ -266,8 +266,8 @@ function App() {
                   icon={FileText}
                   eyebrow="설문 미리보기"
                   title="설문 상세 화면은 준비 중이에요"
-                  description="현재 목록의 제목과 응답 수는 화면을 보여주기 위한 예시입니다. 데이터 저장과 편집 기능은 아직 연결되지 않았어요."
-                  step="설문 편집 기능 예정"
+                  description="이전 미리보기 경로입니다. 실제 설문과 응답자 미리보기는 내 설문 화면에서 관리할 수 있어요."
+                  step="내 설문에서 관리"
                 />
               )}
             />
@@ -278,8 +278,8 @@ function App() {
                   icon={BarChart3}
                   eyebrow="응답 분석"
                   title="응답이 모이면 여기서 살펴볼 수 있어요"
-                  description="질문별 차트와 주관식 답변, 제출 시간을 확인하는 결과 화면을 다음 단계에서 연결합니다."
-                  step="응답 저장 후 진행"
+                  description="질문별 차트와 주관식 답변, 제출 시간을 확인하는 결과 화면은 응답 저장 기능을 구현한 뒤 연결합니다."
+                  step="응답 수집 후 진행"
                 />
               )}
             />
@@ -290,8 +290,8 @@ function App() {
                   icon={Settings2}
                   eyebrow="개발 단계"
                   title="모아 설문을 순서대로 만들고 있어요"
-                  description="기본 화면과 Supabase 인증을 연결했습니다. 다음으로 설문 제작, 응답 수집, 결과 확인을 차례로 구현합니다."
-                  step="2단계 · 인증 완료"
+                  description="기본 화면과 Supabase 인증, 설문 제작·저장을 연결했습니다. 다음으로 공개 응답 수집, 결과 확인을 차례로 구현합니다."
+                  step="3단계 · 설문 제작 완료"
                   showRoadmap
                 />
               )}
@@ -420,13 +420,13 @@ function GettingStartedCard() {
           <span className="roadmap-marker"><Check size={13} aria-hidden="true" /></span>
           <span><strong>기본 화면과 반응형 틀</strong><small>완료</small></span>
         </li>
-        <li>
-          <span className="roadmap-marker roadmap-number">2</span>
+        <li className="roadmap-current">
+          <span className="roadmap-marker"><Check size={13} aria-hidden="true" /></span>
           <span><strong>계정과 로그인</strong><small>완료</small></span>
         </li>
         <li>
           <span className="roadmap-marker roadmap-number">3</span>
-          <span><strong>설문 제작과 응답</strong><small>다음 단계</small></span>
+          <span><strong>공개 응답 수집</strong><small>다음 단계</small></span>
         </li>
       </ol>
       <Link to="/settings" className="text-link">
@@ -587,7 +587,7 @@ function FeaturePlaceholder({ icon: Icon, eyebrow, title, description, step, sho
           <Link to="/" className="button button-primary">대시보드로 돌아가기 <ArrowRight size={16} aria-hidden="true" /></Link>
           <Link to="/surveys" className="button button-outline">내 설문 보기</Link>
         </div>
-        <div className="placeholder-footnote"><CircleHelp size={15} aria-hidden="true" /> 아직 설문 데이터가 연결되거나 저장되지 않습니다.</div>
+        <div className="placeholder-footnote"><CircleHelp size={15} aria-hidden="true" /> 대시보드 수치는 예시이며, 설문 목록은 내 설문 메뉴에서 확인해 주세요.</div>
       </div>
       {showRoadmap && <RoadmapPanel />}
     </section>
@@ -598,16 +598,16 @@ function RoadmapPanel() {
   const steps = [
     { number: '01', title: '기본 화면과 반응형 틀', detail: 'React · JSX · 라우팅', complete: true },
     { number: '02', title: '회원가입과 로그인', detail: 'Supabase Auth', complete: true },
-    { number: '03', title: '설문 제작과 발행', detail: '질문 편집 · 공개 링크', complete: false },
-    { number: '04', title: '응답 수집과 결과', detail: '응답 저장 · 통계 확인', complete: false },
-    { number: '05', title: '보안 점검과 배포', detail: 'RLS · Vercel', complete: false },
+    { number: '03', title: '설문 제작과 발행', detail: '질문 편집 · Supabase 저장', complete: true },
+    { number: '04', title: '공개 응답 수집', detail: '응답 페이지 · 제출 검증', complete: false },
+    { number: '05', title: '응답 결과 분석', detail: '집계 · 질문별 결과', complete: false },
   ];
 
   return (
     <div className="roadmap-panel">
       <div className="roadmap-panel-heading">
         <div><span className="section-kicker">MVP ROADMAP</span><h2>순서대로 진행할게요</h2></div>
-        <span className="roadmap-progress-label">2 / 5 단계</span>
+        <span className="roadmap-progress-label">3 / 5 단계</span>
       </div>
       <div className="roadmap-steps">
         {steps.map((step) => (
@@ -618,7 +618,7 @@ function RoadmapPanel() {
           </div>
         ))}
       </div>
-      <p className="roadmap-note">각 단계를 마친 뒤 결과를 공유하고, 확인과 수정이 끝나면 다음 단계로 넘어갑니다.</p>
+      <p className="roadmap-note">설문 데이터베이스와 RLS SQL은 프로젝트에 추가했어요. 실제 Supabase SQL 실행과 화면별 동작 점검을 완료한 뒤, 공개 응답 수집 단계로 넘어가면 됩니다.</p>
     </div>
   );
 }
