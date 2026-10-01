@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import './dashboard/dashboard.css';
+import { useEffect, useState } from 'react';
 import {
   ArrowRight,
   BarChart3,
@@ -6,36 +7,23 @@ import {
   ChevronRight,
   CircleHelp,
   ClipboardList,
-  FileText,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
   Menu,
-  MoreHorizontal,
-  Plus,
-  Search,
   Settings2,
   Sparkles,
   X,
-  Zap,
 } from 'lucide-react';
 import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext.jsx';
+import DashboardPage from './dashboard/DashboardPage.jsx';
 
 const navigation = [
   { to: '/', label: '대시보드', icon: LayoutDashboard, end: true },
   { to: '/surveys', label: '내 설문', icon: ClipboardList },
   { to: '/results', label: '응답 분석', icon: BarChart3 },
 ];
-
-const previewSurveys = [
-  { id: 'customer-satisfaction', title: '고객 만족도 조사', category: '고객 경험', updatedAt: '오늘 수정', responses: 128, status: 'live', color: 'mint' },
-  { id: 'team-wellbeing', title: '팀을 위한 새로운 복지 아이디어', category: '팀 문화', updatedAt: '어제 수정', responses: 86, status: 'live', color: 'peach' },
-  { id: 'brand-awareness', title: '브랜드 인지도 테스트', category: '마케팅', updatedAt: '6월 12일 수정', responses: 110, status: 'live', color: 'lavender' },
-  { id: 'new-feature', title: '새 기능 사전 의견 받기', category: '제품 피드백', updatedAt: '6월 10일 수정', responses: 0, status: 'draft', color: 'blue' },
-];
-
-const statusLabels = { live: '진행 중', draft: '임시 저장' };
 
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -88,7 +76,7 @@ function App() {
       </aside>
 
       <main className="main-shell">
-        <header className="topbar"><div className="topbar-leading"><button className="icon-button mobile-menu-toggle" type="button" aria-label="메뉴 열기" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Menu size={21} /></button><div className="breadcrumbs" aria-label="현재 위치"><span>나의 작업 공간</span><ChevronRight size={15} aria-hidden="true" /><strong>{pageTitle}</strong></div></div><div className="topbar-actions"><span className="preview-indicator"><span /> 샘플 수치는 미리보기</span><Link className="icon-button topbar-help" to="/settings" aria-label="도움말 및 개발 단계"><CircleHelp size={19} /></Link><button className="icon-button topbar-logout" type="button" aria-label="로그아웃" title="로그아웃" disabled={isSigningOut} onClick={handleSignOut}><LogOut size={17} aria-hidden="true" /></button></div></header>
+        <header className="topbar"><div className="topbar-leading"><button className="icon-button mobile-menu-toggle" type="button" aria-label="메뉴 열기" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Menu size={21} /></button><div className="breadcrumbs" aria-label="현재 위치"><span>나의 작업 공간</span><ChevronRight size={15} aria-hidden="true" /><strong>{pageTitle}</strong></div></div><div className="topbar-actions"><span className="preview-indicator"><span /> 실제 설문 데이터</span><Link className="icon-button topbar-help" to="/settings" aria-label="도움말 및 개발 단계"><CircleHelp size={19} /></Link><button className="icon-button topbar-logout" type="button" aria-label="로그아웃" title="로그아웃" disabled={isSigningOut} onClick={handleSignOut}><LogOut size={17} aria-hidden="true" /></button></div></header>
         <div className="page-content">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
@@ -96,50 +84,11 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </div>
-        <footer className="app-footer"><span>모아 설문 <span className="footer-dot">·</span> 더 나은 질문을 위한 작은 시작</span><span>대시보드 통계는 예시입니다</span></footer>
+        <footer className="app-footer"><span>모아 설문 <span className="footer-dot">·</span> 더 나은 질문을 위한 작은 시작</span><span>대시보드 수치는 내 설문과 실제 응답 기준</span></footer>
         <nav className="mobile-tabbar" aria-label="빠른 메뉴">{navigation.map(({ to, label, icon: Icon, end }) => <NavLink key={to} to={to} end={end} className={({ isActive }) => `mobile-tab${isActive ? ' mobile-tab-active' : ''}`}><Icon size={19} strokeWidth={1.9} aria-hidden="true" /><span>{label}</span></NavLink>)}</nav>
       </main>
     </div>
   );
-}
-
-function DashboardPage() {
-  return (
-    <>
-      <section className="welcome-banner"><div className="welcome-copy"><span className="eyebrow"><Sparkles size={15} aria-hidden="true" /> 좋은 질문을 시작해요</span><h1>의견을 모으는 일,<br /><span>모아와 함께 시작해요.</span></h1><p>간편하게 설문을 만들고, 흩어진 생각을 한곳에 모아보세요.</p><div className="welcome-actions"><Link to="/surveys/new" className="button button-primary"><Plus size={18} aria-hidden="true" /> 새 설문 만들기</Link><Link to="/surveys" className="button button-quiet">내 설문 둘러보기 <ArrowRight size={16} aria-hidden="true" /></Link></div></div><div className="hero-visual" aria-hidden="true"><div className="hero-orbit hero-orbit-back" /><div className="hero-orbit hero-orbit-front" /><div className="hero-sheet"><div className="hero-sheet-top"><span className="hero-mini-brand"><span className="mini-brand-mark" /> 모아 설문</span><MoreHorizontal size={18} /></div><div className="hero-question-label">고객 경험</div><strong className="hero-question">오늘의 경험은 어떠셨나요?</strong><div className="hero-answer hero-answer-selected"><span className="hero-radio" /> 아주 만족해요 <Check size={14} /></div><div className="hero-answer"><span className="hero-radio" /> 만족해요</div><div className="hero-answer"><span className="hero-radio" /> 보통이에요</div><div className="hero-progress"><span /></div></div><div className="hero-floating-card"><span className="floating-sparkle"><Zap size={17} fill="currentColor" /></span><span><strong>좋은 인사이트</strong><small>의견이 모이는 중이에요</small></span></div><div className="hero-confetti hero-confetti-one" /><div className="hero-confetti hero-confetti-two" /></div></section>
-      <div className="preview-notice" role="note"><span className="notice-icon"><CircleHelp size={17} aria-hidden="true" /></span><p><strong>요약 수치는 화면 예시입니다</strong><span>실제 설문과 응답은 내 설문 및 응답 분석 메뉴에서 확인해 주세요.</span></p><span className="notice-tag">샘플</span></div>
-      <section className="metric-grid" aria-label="미리보기 요약"><MetricCard icon={ClipboardList} label="전체 설문" value="08" detail="예시 화면 수치" tone="green" /><MetricCard icon={BarChart3} label="모은 응답" value="324" detail="예시 화면 수치" tone="blue" /><MetricCard icon={FileText} label="진행 중" value="03" detail="예시 화면 수치" tone="orange" /><MetricCard icon={Sparkles} label="평균 완료율" value="74%" detail="예시 화면 수치" tone="purple" /></section>
-      <div className="dashboard-grid"><SurveyLibrary compact /><aside className="dashboard-aside"><GettingStartedCard /><div className="tip-card"><div className="tip-icon"><Sparkles size={18} aria-hidden="true" /></div><div className="tip-copy"><span className="tip-label">작은 팁</span><h3>좋은 설문은 짧고 명확해요</h3><p>한 번에 하나씩 묻고, 질문의 목적을 분명하게 정하면 더 좋은 답변을 얻을 수 있어요.</p></div></div></aside></div>
-    </>
-  );
-}
-
-function MetricCard({ icon: Icon, label, value, detail, tone }) {
-  return <article className="metric-card"><div className={`metric-icon metric-icon-${tone}`}><Icon size={19} strokeWidth={1.9} aria-hidden="true" /></div><div className="metric-label">{label}</div><div className="metric-value">{value}</div><div className="metric-detail">{detail}</div></article>;
-}
-
-function GettingStartedCard() {
-  return <section className="getting-started-card"><div className="getting-started-heading"><span className="getting-started-icon"><Zap size={16} fill="currentColor" aria-hidden="true" /></span><span>MVP 주요 흐름</span></div><h2>설문부터 결과까지</h2><p>설문 생성과 공개 응답 흐름을 확인해 보세요.</p><ol className="roadmap-list"><li className="roadmap-current"><span className="roadmap-marker"><Check size={13} aria-hidden="true" /></span><span><strong>설문 제작·발행</strong><small>완료</small></span></li><li className="roadmap-current"><span className="roadmap-marker"><Check size={13} aria-hidden="true" /></span><span><strong>공개 응답 저장</strong><small>코드 연결 · 배포 확인 필요</small></span></li><li className="roadmap-current"><span className="roadmap-marker"><BarChart3 size={13} aria-hidden="true" /></span><span><strong>결과 분석·권한 점검</strong><small>코드 연결 · 배포 확인 필요</small></span></li></ol><Link to="/results" className="text-link">응답 분석 보기 <ArrowRight size={15} aria-hidden="true" /></Link></section>;
-}
-
-function SurveyLibrary({ compact = false }) {
-  const [filter, setFilter] = useState('all');
-  const [query, setQuery] = useState('');
-  const filteredSurveys = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase('ko');
-    return previewSurveys.filter((survey) => (filter === 'all' || survey.status === filter) && (!normalizedQuery || survey.title.toLocaleLowerCase('ko').includes(normalizedQuery)));
-  }, [filter, query]);
-  const visibleSurveys = compact ? filteredSurveys.slice(0, 4) : filteredSurveys;
-  return <section className={`survey-library-card${compact ? ' survey-library-compact' : ''}`}><div className="library-heading"><div><span className="section-kicker">MY SURVEYS</span><h2>{compact ? '최근 설문 예시' : '설문 예시'}</h2></div>{compact ? <Link to="/surveys" className="text-link library-all-link">모두 보기 <ArrowRight size={15} aria-hidden="true" /></Link> : <span className="library-count">예시 {filteredSurveys.length}개</span>}</div><div className="library-toolbar"><div className="filter-tabs" role="group" aria-label="샘플 설문 상태 필터"><FilterButton value="all" activeValue={filter} onSelect={setFilter} label="전체" count="08" /><FilterButton value="live" activeValue={filter} onSelect={setFilter} label="진행 중" count="03" /><FilterButton value="draft" activeValue={filter} onSelect={setFilter} label="임시 저장" count="05" /></div><label className="survey-search"><Search size={16} aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="설문 검색" aria-label="샘플 설문 제목 검색" /></label></div><div className="survey-list" aria-live="polite">{visibleSurveys.length ? visibleSurveys.map((survey) => <SurveyRow key={survey.id} survey={survey} />) : <div className="empty-search"><span className="empty-search-icon"><Search size={19} aria-hidden="true" /></span><strong>검색 결과가 없어요</strong><span>다른 검색어나 상태 필터를 선택해 보세요.</span><button type="button" className="text-button" onClick={() => { setQuery(''); setFilter('all'); }}>필터 초기화</button></div>}</div>{compact && <div className="library-footer-note"><span className="status-dot" /> 화면 예시이며 실제 설문은 내 설문에서 확인</div>}</section>;
-}
-
-function FilterButton({ value, activeValue, onSelect, label, count }) {
-  const isActive = value === activeValue;
-  return <button type="button" className={`filter-tab${isActive ? ' filter-tab-active' : ''}`} aria-pressed={isActive} onClick={() => onSelect(value)}>{label}<span>{count}</span></button>;
-}
-
-function SurveyRow({ survey }) {
-  return <article className="survey-row"><div className="survey-main"><span className={`survey-file-icon survey-file-${survey.color}`}><FileText size={18} strokeWidth={1.8} aria-hidden="true" /></span><span className="survey-copy"><Link to="/surveys" className="survey-title">{survey.title}</Link><span className="survey-category">{survey.category}<span className="category-dot">·</span>{survey.updatedAt}</span></span></div><div className="survey-response-count"><strong>{survey.responses}</strong><span>응답 예시</span></div><span className={`status-badge status-${survey.status}`}><span />{statusLabels[survey.status]}</span><Link to="/surveys" className="survey-open-link" aria-label="내 설문으로 이동"><ArrowRight size={16} aria-hidden="true" /></Link></article>;
 }
 
 function FeaturePlaceholder({ icon: Icon, eyebrow, title, description, step, showRoadmap = false }) {
