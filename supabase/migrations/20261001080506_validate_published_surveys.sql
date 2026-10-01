@@ -26,11 +26,16 @@ begin
     v_survey_ids := array[new.survey_id];
   end if;
 
-  foreach v_survey_id in array v_survey_ids loop
+  -- 같은 설문의 동시 질문 변경이 각각 오래된 질문 수를 통과하지 못하도록
+  -- 설문 행을 일정한 순서로 잠근 뒤 최종 상태를 검사합니다.
+  for v_survey_id in
+    select distinct id from unnest(v_survey_ids) as survey_ids(id) order by id
+  loop
     select survey.status, survey.title
       into v_status, v_title
     from public.surveys as survey
-    where survey.id = v_survey_id;
+    where survey.id = v_survey_id
+    for update;
 
     -- 설문 삭제에 따른 질문 cascade도 여기서 통과합니다.
     if not found or v_status <> 'published' then
@@ -109,5 +114,48 @@ create constraint trigger questions_validate_published
 after insert or update or delete on public.questions
 deferrable initially deferred
 for each row execute function public.validate_published_survey();
+
+-- 트리거 생성 전부터 존재하던 발행 설문도 한 번 검사합니다.
+do $$
+begin
+  if exists (
+    select 1 from public.surveys as survey
+    where survey.status = 'published'
+      and (
+        length(btrim(survey.title)) = 0
+        or length(survey.title) > 120
+        or (select count(*) from public.questions as question
+            where question.survey_id = survey.id) not between 1 and 100
+        or exists (
+          select 1 from public.questions as question
+          where question.survey_id = survey.id
+            and (
+              length(btrim(question.prompt)) = 0
+              or length(question.prompt) > 300
+              or (
+                question.type in ('single', 'multiple')
+                and (
+                  jsonb_typeof(question.options) <> 'array'
+                  or jsonb_array_length(question.options) < 2
+                  or exists (
+                    select 1 from jsonb_array_elements(question.options) as option_value(value)
+                    where jsonb_typeof(option_value.value) <> 'string'
+                       or length(btrim(option_value.value #>> '{}')) = 0
+                       or length(option_value.value #>> '{}') > 120
+                  )
+                  or (select count(*) from jsonb_array_elements(question.options)) <>
+                     (select count(distinct btrim(option_value.value #>> '{}'))
+                        from jsonb_array_elements(question.options) as option_value(value))
+                )
+              )
+            )
+        )
+      )
+  ) then
+    raise exception '기존 발행 설문에 제목 또는 질문 구성 오류가 있어 검증 마이그레이션을 적용할 수 없습니다.'
+      using errcode = '23514';
+  end if;
+end;
+$$;
 
 commit;
