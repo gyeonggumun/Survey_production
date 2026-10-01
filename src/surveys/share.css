@@ -1,0 +1,20 @@
+.survey-share-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  border: 1px solid #dcebe2;
+  border-radius: 12px;
+  background: #f7fbf8;
+}
+.survey-share-copy { display: grid; min-width: 0; gap: 5px; }
+.survey-share-copy > strong { color: #3e5949; font-size: 12px; }
+.survey-share-copy > p { margin: 0; color: #83948a; font-size: 10px; line-height: 1.5; }
+.survey-share-copy > code { overflow: hidden; color: #318063; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.survey-share-actions { display: flex; flex: 0 0 auto; gap: 7px; }
+@media (max-width: 600px) {
+  .survey-share-card { align-items: stretch; flex-direction: column; gap: 12px; padding: 14px; }
+  .survey-share-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .survey-share-actions .survey-button { padding: 0 8px; font-size: 10px; }
+}

@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import App from '../App.jsx';
+import PublicSurveyPage from '../surveys/PublicSurveyPage.jsx';
 import SurveyFlow from '../surveys/SurveyFlow.jsx';
 import { useAuth } from './AuthContext.jsx';
 import AuthPage from './AuthPage.jsx';
@@ -22,6 +23,9 @@ export default function AuthGate() {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
+  // 공개 설문 응답은 로그인 없이 접근할 수 있습니다.
+  if (/^\/s\/[^/]+\/?$/.test(location.pathname)) return <PublicSurveyPage />;
+
   if (isLoading) return <SessionLoadingScreen />;
 
   if (location.pathname === '/auth') {
@@ -32,8 +36,8 @@ export default function AuthGate() {
     return <Navigate to="/auth" replace state={{ from: location }} />;
   }
 
-  // 설문 제작과 관리는 데이터베이스에 연결된 MVP 화면을 사용합니다.
-  if (/^\/surveys(?:\/|$)/.test(location.pathname)) return <SurveyFlow />;
+  // 설문 및 응답 결과 영역은 인증 사용자용 데이터베이스 화면을 사용합니다.
+  if (/^\/(?:surveys|results)(?:\/|$)/.test(location.pathname)) return <SurveyFlow />;
 
   return <App />;
 }
