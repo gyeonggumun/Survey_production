@@ -176,9 +176,9 @@ begin
     end if;
   end if;
 
-  -- 유일 인덱스를 유지하면서 질문 위치를 서로 바꿀 수 있도록 기존 위치를
-  -- 현재 최댓값보다 높은 임시 구간으로 이동합니다. 함수 전체는 단일 트랜잭션입니다.
-  select coalesce(max(question.position), -1) + 1
+  -- 기존 위치와 새 질문의 최종 위치가 겹치지 않는 임시 구간으로 이동합니다.
+  -- 함수 전체는 단일 트랜잭션입니다.
+  select greatest(coalesce(max(question.position), -1), v_question_count - 1) + 1
   into v_offset
   from public.questions as question
   where question.survey_id = p_survey_id;
