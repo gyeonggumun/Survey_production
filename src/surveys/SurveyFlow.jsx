@@ -1,7 +1,13 @@
 import { ArrowLeft, BarChart3, ClipboardList, Home } from 'lucide-react';
 import { Link, Route, Routes } from 'react-router-dom';
-import { ResultsDetailPage, ResultsIndexPage, SurveyListPage, SurveyPreviewPage, SurveyResponsesPage } from './SurveyPages.jsx';
-import SurveyEditorPage from './SurveyEditorPage.jsx';
+import {
+  ResultsDetailPage,
+  ResultsIndexPage,
+  SurveyEditorPage,
+  SurveyListPage,
+  SurveyPreviewPage,
+  SurveyResponsesPage,
+} from './SurveyPageComponents.jsx';
 import PublicSurveyPage from './PublicSurveyPage.jsx';
 import './surveys.css';
 import './results.css';
@@ -23,6 +29,7 @@ export default function SurveyFlow() {
         </nav>
       </header>
       <main className="survey-app-main">
+        {/* 설문 목록, 편집, 응답 제출과 결과 화면을 경로별로 연결합니다. */}
         <Routes>
           <Route path="/surveys" element={<SurveyListPage />} />
           <Route path="/surveys/new" element={<SurveyEditorPage />} />

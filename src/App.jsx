@@ -19,6 +19,7 @@ import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext.jsx';
 import DashboardPage from './dashboard/DashboardPage.jsx';
 
+// 주 메뉴 정보는 데스크톱과 모바일 메뉴가 함께 사용합니다.
 const navigation = [
   { to: '/', label: '대시보드', icon: LayoutDashboard, end: true },
   { to: '/surveys', label: '내 설문', icon: ClipboardList },
@@ -35,6 +36,7 @@ function App() {
   const accountName = accountEmail.includes('@') ? accountEmail.split('@')[0] : accountEmail;
   const accountInitial = accountName.slice(0, 1).toLocaleUpperCase('ko-KR') || 'M';
 
+  // 모바일 메뉴를 연 상태에서 다른 페이지로 이동하면 메뉴를 자동으로 닫습니다.
   useEffect(() => { setMobileMenuOpen(false); }, [location.pathname]);
 
   const handleSignOut = async () => {
@@ -51,6 +53,7 @@ function App() {
     }
   };
 
+  // 현재 경로에 맞춰 상단 이동 경로 제목을 표시합니다.
   const pageTitle = location.pathname.startsWith('/surveys/new') ? '새 설문'
     : location.pathname.startsWith('/surveys/') ? '설문'
       : navigation.find((item) => item.to === location.pathname)?.label ?? '워크스페이스';
@@ -96,6 +99,7 @@ function FeaturePlaceholder({ icon: Icon, eyebrow, title, description, step, sho
 }
 
 function RoadmapPanel() {
+  // 개발 진행 상태를 설정 화면에서 단계별로 요약합니다.
   const steps = [
     { number: '01', title: '기본 화면과 반응형 틀', detail: 'React · JSX · 라우팅', complete: true },
     { number: '02', title: '회원가입과 로그인', detail: 'Supabase Auth', complete: true },

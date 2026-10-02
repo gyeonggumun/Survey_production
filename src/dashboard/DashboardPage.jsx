@@ -30,6 +30,8 @@ function formatError(error) {
 }
 
 async function loadDashboardData(userId) {
+  // 요약 지표와 최근 설문을 병렬 조회해 대시보드 대기 시간을 줄입니다.
+  // 응답 전체 개수는 RLS 정책이 허용한 범위 안에서 집계됩니다.
   const [allSurveys, publishedSurveys, draftSurveys, allResponses, recentSurveys] = await Promise.all([
     supabase.from('surveys').select('id', { count: 'exact', head: true }).eq('owner_id', userId),
     supabase.from('surveys').select('id', { count: 'exact', head: true }).eq('owner_id', userId).eq('status', 'published'),
@@ -42,11 +44,13 @@ async function loadDashboardData(userId) {
       .limit(4),
   ]);
 
+  // 일부 쿼리만 실패해도 부정확한 일부 지표를 보여주지 않고 오류로 처리합니다.
   const failedQuery = [allSurveys, publishedSurveys, draftSurveys, allResponses, recentSurveys]
     .find((result) => result.error);
   if (failedQuery) throw failedQuery.error;
 
   const recentRows = recentSurveys.data ?? [];
+  // 최근 설문 각각의 응답 수를 조회해 목록에 함께 표시합니다.
   const responseCounts = await Promise.all(recentRows.map(async (survey) => {
     const { count, error } = await supabase.from('responses')
       .select('id', { count: 'exact', head: true })
@@ -78,6 +82,7 @@ export default function DashboardPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    // 화면이 닫힌 뒤 늦게 도착한 조회 결과가 상태를 바꾸지 않게 막습니다.
     let active = true;
 
     async function load() {
@@ -184,6 +189,7 @@ function SurveyLibrary({ surveys, loading, hasError }) {
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const normalizedQuery = query.trim().toLocaleLowerCase('ko');
+  // 검색어와 상태 필터가 바뀔 때 표시할 최근 설문만 메모이제이션합니다.
   const filteredSurveys = useMemo(() => surveys.filter((survey) => {
     const matchesStatus = filter === 'all' || survey.status === filter;
     const matchesQuery = !normalizedQuery || `${survey.title ?? ''} ${survey.description ?? ''}`.toLocaleLowerCase('ko').includes(normalizedQuery);
