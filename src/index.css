@@ -40,6 +40,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   flex-direction: column;
   width: 254px;
   padding: 25px 16px 15px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   border-right: 1px solid #edf0ee;
   background: #fff;
 }
@@ -134,8 +137,8 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .help-card-link:hover, .text-link:hover { color: #0b644f; }
 .sidebar-account { display: flex; align-items: center; gap: 10px; margin-top: 15px; padding: 12px 5px 2px; border-top: 1px solid #eef1ef; }
 .account-avatar, .topbar-avatar { display: grid; flex: 0 0 34px; place-items: center; width: 34px; height: 34px; border: 1px solid #f1dbcb; border-radius: 50%; background: #fff0e6; color: #b26d49; font-size: 13px; font-weight: 700; }
-.account-copy { display: flex; flex: 1; flex-direction: column; gap: 3px; }
-.account-copy strong { color: #506059; font-size: 11px; font-weight: 700; }
+.account-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+.account-copy strong { overflow: hidden; color: #506059; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .account-copy span { color: #9aa49f; font-size: 10px; }
 .account-more { color: #a1aca7; }
 
