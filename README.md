@@ -33,7 +33,8 @@ DB 변경의 기준은 `supabase/migrations/`입니다. 마이그레이션은 �
 3. `20261001075705_add_public_survey_responses.sql` — 응답·답변 테이블과 검증 제출 RPC
 4. `20261001075950_preserve_response_history_and_save_questions.sql` — 질문 원자 저장, 응답 이력 보호
 5. `20261001080506_validate_published_surveys.sql` — 기존 발행 설문 검사와 DB 유효성 검증
-6. `20261001080600_serialize_responses_and_preserve_reordering.sql` — 응답 제출과 질문 변경 직렬화, 응답 이력이 있는 설문의 질문 순서 저장 허용
+6. `20261002023721_serialize_responses_and_preserve_reordering.sql` — 응답 제출과 질문 변경 직렬화, 응답 이력이 있는 설문의 질문 순서 저장 허용
+7. `20261002024231_restrict_survey_table_grants.sql` — 공개·로그인 역할의 테이블 권한을 필요한 범위로 제한
 
 기존 `supabase/schema.sql`은 핵심 설문 테이블에 대한 이전 수동 설치용 참고 파일이며, 응답 저장까지 포함한 현재 전체 설치에서는 실행하지 마세요.
 
@@ -63,7 +64,7 @@ DB 변경의 기준은 `supabase/migrations/`입니다. 마이그레이션은 �
 
 GitHub 저장소의 배포 브랜치를 Vercel 프로젝트에 연결합니다. 프레임워크는 Vite, 빌드 명령은 `npm run build`, 출력 디렉터리는 `dist`입니다. Production/Preview에 위 두 `VITE_SUPABASE_*` 환경 변수를 설정한 후 배포합니다. `vercel.json`은 브라우저 새로고침 시 SPA 경로를 `index.html`로 재작성합니다.
 
-프런트엔드는 저장소 변경 후 배포해야 합니다. **DB migration은 Vercel이 자동 실행하지 않습니다.** DB 변경은 먼저 `db push --dry-run` 결과에서 적용 대상을 확인한 다음 직접 적용하세요. 프로젝트 ref가 본인 DB와 일치하는지 반드시 점검하고, 키와 DB 비밀번호는 저장소에 커밋하지 않습니다.
+현재 `gyeonggumun/Survey_production`의 `main` 푸시는 Vercel `survey-production`에 자동 배포됩니다. **DB migration은 Vercel이 자동 실행하지 않습니다.** DB 변경은 먼저 `db push --dry-run` 결과에서 적용 대상을 확인한 다음 직접 적용하세요. 프로젝트 ref가 본인 DB와 일치하는지 반드시 점검하고, 키와 DB 비밀번호는 저장소에 커밋하지 않습니다.
 
 ## 현재 구현 내용
 
@@ -86,7 +87,7 @@ GitHub 저장소의 배포 브랜치를 Vercel 프로젝트에 연결합니다. 
 
 ## 테스트 및 배포 전 확인
 
-이 저장소 파일만으로는 현재 Supabase 원격 DB에 어떤 마이그레이션이 실제 적용됐는지 검증할 수 없습니다. 새 마이그레이션을 적용하기 전 본인 프로젝트 ref, dry-run 변경 목록, 백업 여부를 확인하세요. 적용 후에는 응답이 있는 설문의 질문 순서 변경이 성공하고, 질문 내용·유형·선택지 변경 및 응답 제출과 동시에 수행되는 편집이 안전하게 처리되는지 실제 배포 URL에서 확인해야 합니다. 이 코드 작업에서는 원격 SQL 적용, Vercel 배포, 브라우저 검증을 수행하지 않았습니다.
+2026-10-02에 연결된 Supabase 프로젝트의 마이그레이션 7개 적용 기록과 함수 정의를 확인했습니다. 롤백형 DB 테스트에서 응답 제출, 응답 후 질문 순서 변경, 질문 내용 변경 차단을 검증했고, 역할별 테이블 권한도 확인했습니다. 프런트엔드 자동 테스트 11개와 프로덕션 빌드가 통과했습니다. 실제 브라우저에서 회원가입부터 응답 제출까지의 전체 흐름은 별도로 확인해야 합니다. 이후 다른 프로젝트에 적용할 때는 프로젝트 ref, `db push --dry-run` 결과, 백업 여부를 먼저 점검하세요.
 
 ## GitHub에 올리기 전 비밀 파일 이중 점검
 
