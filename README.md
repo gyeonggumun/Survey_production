@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Vite가 표시하는 로컬 주소를 브라우저에서 여세요. 프로덕션 빌드는 `npm run build`, 빌드 결과 미리보기는 `npm run preview`입니다.
+Vite가 표시하는 로컬 주소를 브라우저에서 여세요. 프로덕션 빌드는 `npm run build`, 빌드 결과 미리보기는 `npm run preview`입니다. 자동 단위 테스트는 `npm test`로 실행합니다.
 
 ## 배포 환경 변수
 
@@ -41,7 +41,7 @@ DB 변경의 기준은 `supabase/migrations/`입니다. 마이그레이션은 �
 
    ```bash
    npx --yes supabase@2.119.0 login
-   npx --yes supabase@2.119.0 link --project-ref blhxyoloslthrdpiwfks
+   npx --yes supabase@2.119.0 link --project-ref YOUR_PROJECT_REF
    npx --yes supabase@2.119.0 db push --dry-run
    npx --yes supabase@2.119.0 db push
    ```
@@ -76,10 +76,17 @@ GitHub 저장소의 배포 브랜치를 Vercel 프로젝트에 연결합니다. 
 - 설문 소유자만 응답·답변을 읽도록 RLS 제한
 - 응답 수, 질문별 객관식 집계, 주관식 답변 및 제출 시간 화면
 - 밝은 색감과 모바일 반응형 설문 작성·응답·결과 화면
+- 결과 집계 순수 함수의 자동 테스트(공란 답변 제외, 선택지별 분모 및 다중 선택 비율)
+
+## 화면 구현 선택
+
+실제 `/surveys/*` 및 `/results/*` 라우트는 `SurveyFlow.jsx`에서 연결합니다. 화면 컴포넌트 export는 `SurveyPageComponents.jsx`를 통해 모으고, 설문 편집은 `SurveyEditorPage.jsx` 한 가지 구현을 사용합니다. `SurveyPages.jsx`에는 목록·미리보기·응답 및 결과 화면이 남아 있습니다. 결과 페이지 구현도 `ResultsDetailPage` 하나로 통합했고, `ResultsPage.jsx`는 이전 import의 호환성을 위한 재내보내기 파일입니다.
+
+설문 편집기는 `save_survey_questions` RPC를 사용해 질문 변경을 트랜잭션으로 저장합니다. 브라우저에서 `questions` 테이블에 개별 upsert/delete를 직접 수행하는 대체 저장 경로는 쓰지 않습니다. 이 RPC를 추가한 migration이 원격 DB에도 적용되어 있어야 저장이 동작합니다.
 
 ## 테스트 및 배포 전 확인
 
-이 저장소 파일만으로는 현재 Supabase 원격 DB에 어떤 마이그레이션이 실제 적용됐는지 검증할 수 없습니다. 새 마이그레이션을 적용하기 전 본인 프로젝트 ref, dry-run 변경 목록, 백업 여부를 확인하세요. 적용 후에는 응답이 있는 설문의 질문 순서 변경이 성공하고, 질문 내용·유형·선택지 변경 및 응답 제출과 동시에 수행되는 편집이 안전하게 처리되는지 실제 배포 URL에서 확인해야 합니다. 빌드, 브라우저 실행, 원격 SQL 적용 및 Vercel 배포는 이 작업에서 실행하지 않았습니다.
+이 저장소 파일만으로는 현재 Supabase 원격 DB에 어떤 마이그레이션이 실제 적용됐는지 검증할 수 없습니다. 새 마이그레이션을 적용하기 전 본인 프로젝트 ref, dry-run 변경 목록, 백업 여부를 확인하세요. 적용 후에는 응답이 있는 설문의 질문 순서 변경이 성공하고, 질문 내용·유형·선택지 변경 및 응답 제출과 동시에 수행되는 편집이 안전하게 처리되는지 실제 배포 URL에서 확인해야 합니다. 이 코드 작업에서는 원격 SQL 적용, Vercel 배포, 브라우저 검증을 수행하지 않았습니다.
 
 ## GitHub에 올리기 전 비밀 파일 이중 점검
 

@@ -1,42 +1,24 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowDown,
   ArrowLeft,
   ArrowRight,
   BarChart3,
-  Check,
   CircleHelp,
-  Copy,
-  Eye,
   FilePlus2,
   FileText,
   LoaderCircle,
   Plus,
-  Save,
   Trash2,
-  X,
 } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { supabase } from '../lib/supabase.js';
+import { summarizeQuestion } from './resultAnalytics.js';
 import SurveyShareLink from './SurveyShareLink.jsx';
 import './surveys.css';
+import './results.css';
 
 const statusLabels = { draft: '임시 저장', published: '발행됨' };
-
-function createId() {
-  return globalThis.crypto?.randomUUID?.() ?? `q-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function createQuestion() {
-  return {
-    id: createId(),
-    prompt: '',
-    type: 'single',
-    required: true,
-    options: ['선택지 1', '선택지 2'],
-  };
-}
 
 function errorText(error, fallback) {
   const detail = error?.message ? ` (${error.message})` : '';
@@ -148,10 +130,10 @@ export function SurveyListPage() {
                 </div>
                 <span className={`survey-status survey-status-${survey.status}`}><span />{statusLabels[survey.status] ?? '상태 확인 필요'}</span>
                 <div className="survey-list-actions">
-                  <Link className="survey-icon-action" to={`/surveys/${survey.id}`} aria-label={`${survey.title} 미리보기`} title="미리보기"><Eye size={17} /></Link>
-                  <Link className="survey-icon-action" to={`/surveys/${survey.id}/edit`} aria-label={`${survey.title} 수정`} title="수정"><ArrowRight size={17} /></Link>
-                  <Link className="survey-icon-action" to={`/surveys/${survey.id}/responses`} aria-label={`${survey.title} 응답 결과`} title="응답 결과"><BarChart3 size={16} /></Link>
-                  <button className="survey-icon-action survey-delete-action" type="button" disabled={deletingId === survey.id} onClick={() => deleteSurvey(survey)} aria-label={`${survey.title} 삭제`} title="삭제"><Trash2 size={16} /></button>
+                  <Link className="survey-icon-action" to={`/surveys/${survey.id}`} aria-label={`${survey.title} 미리보기`} title="미리보기"><span className="sr-only">미리보기</span><FileText size={17} /></Link>
+                  <Link className="survey-icon-action" to={`/surveys/${survey.id}/edit`} aria-label={`${survey.title} 수정`} title="수정"><span className="sr-only">수정</span><ArrowRight size={17} /></Link>
+                  <Link className="survey-icon-action" to={`/surveys/${survey.id}/responses`} aria-label={`${survey.title} 응답 결과`} title="응답 결과"><span className="sr-only">응답 결과</span><BarChart3 size={16} /></Link>
+                  <button className="survey-icon-action survey-delete-action" type="button" disabled={deletingId === survey.id} onClick={() => deleteSurvey(survey)} aria-label={`${survey.title} 삭제`} title="삭제"><span className="sr-only">삭제</span><Trash2 size={16} /></button>
                 </div>
               </article>
             ))}
@@ -167,333 +149,6 @@ export function SurveyListPage() {
       </div>
       <p className="survey-privacy-note"><CircleHelp size={15} /> 내 계정이 소유한 설문만 표시됩니다. 계정 간 접근은 Supabase RLS 정책으로 제한돼요.</p>
     </section>
-  );
-}
-
-export function SurveyEditorPage() {
-  const { surveyId: routeSurveyId } = useParams();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const surveyIdRef = useRef(routeSurveyId ?? null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [questions, setQuestions] = useState([createQuestion()]);
-  const [status, setStatus] = useState('draft');
-  const [loading, setLoading] = useState(Boolean(routeSurveyId));
-  const [saving, setSaving] = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
-  const [pageError, setPageError] = useState('');
-  const [feedback, setFeedback] = useState('');
-
-  useEffect(() => {
-    surveyIdRef.current = routeSurveyId ?? null;
-    if (!routeSurveyId) {
-      setTitle('');
-      setDescription('');
-      setQuestions([createQuestion()]);
-      setStatus('draft');
-      setPageError('');
-      setLoading(false);
-      return undefined;
-    }
-    let active = true;
-    async function loadSurvey() {
-      if (!supabase || !user?.id) {
-        setPageError('Supabase 연결 또는 로그인 정보를 확인해 주세요.');
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setPageError('');
-      const { data: survey, error: surveyError } = await supabase
-        .from('surveys')
-        .select('id, title, description, status')
-        .eq('id', routeSurveyId)
-        .eq('owner_id', user.id)
-        .maybeSingle();
-      if (!active) return;
-      if (surveyError || !survey) {
-        setPageError(errorText(surveyError, '설문을 찾을 수 없거나 열람 권한이 없어요.'));
-        setLoading(false);
-        return;
-      }
-      const { data: questionRows, error: questionError } = await supabase
-        .from('questions')
-        .select('id, prompt, type, required, options, position')
-        .eq('survey_id', routeSurveyId)
-        .order('position', { ascending: true });
-      if (!active) return;
-      if (questionError) {
-        setPageError(errorText(questionError, '설문 질문을 불러오지 못했어요.'));
-      } else {
-        setTitle(survey.title ?? '');
-        setDescription(survey.description ?? '');
-        setStatus(survey.status ?? 'draft');
-        setQuestions((questionRows ?? []).map((question) => ({
-          ...question,
-          options: Array.isArray(question.options) ? question.options : [],
-        })));
-      }
-      setLoading(false);
-    }
-    loadSurvey();
-    return () => { active = false; };
-  }, [routeSurveyId, user?.id]);
-
-  const updateQuestion = (id, changes) => {
-    setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...changes } : question));
-  };
-
-  const updateOption = (questionId, optionIndex, value) => {
-    setQuestions((current) => current.map((question) => {
-      if (question.id !== questionId) return question;
-      const options = [...(question.options ?? [])];
-      options[optionIndex] = value;
-      return { ...question, options };
-    }));
-  };
-
-  const moveQuestion = (index, direction) => {
-    setQuestions((current) => {
-      const target = index + direction;
-      if (target < 0 || target >= current.length) return current;
-      const next = [...current];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  };
-
-  const validateForPublish = () => {
-    if (!title.trim()) return '발행하려면 설문 제목을 입력해 주세요.';
-    if (!questions.length) return '발행하려면 질문을 하나 이상 추가해 주세요.';
-    for (let index = 0; index < questions.length; index += 1) {
-      const question = questions[index];
-      if (!question.prompt.trim()) return `${index + 1}번 질문 내용을 입력해 주세요.`;
-      if (question.type !== 'text') {
-        const options = question.options ?? [];
-        if (options.length < 2 || options.some((option) => !option.trim()) || new Set(options.map((option) => option.trim())).size !== options.length) {
-          return `${index + 1}번 질문에 서로 다른 선택지를 2개 이상 입력해 주세요.`;
-        }
-      }
-    }
-    return '';
-  };
-
-  const saveSurvey = useCallback(async () => {
-    if (!supabase || !user?.id) {
-      setPageError('Supabase 연결 또는 로그인 정보를 확인해 주세요.');
-      return null;
-    }
-    setSaving(true);
-    setPageError('');
-    setFeedback('');
-    try {
-      let id = surveyIdRef.current;
-      if (id) {
-        const { data, error } = await supabase.from('surveys')
-          .update({ title: title.trim() || '제목 없는 설문', description: description.trim() })
-          .eq('id', id)
-          .eq('owner_id', user.id)
-          .select('id')
-          .maybeSingle();
-        if (error) throw error;
-        if (!data) throw new Error('설문이 삭제되었거나 수정 권한이 없습니다.');
-      } else {
-        const { data, error } = await supabase.from('surveys')
-          .insert({ owner_id: user.id, title: title.trim() || '제목 없는 설문', description: description.trim(), status: 'draft' })
-          .select('id')
-          .single();
-        if (error) throw error;
-        id = data.id;
-        surveyIdRef.current = id;
-      }
-
-      const rows = questions.map((question, index) => ({
-        id: question.id,
-        survey_id: id,
-        prompt: question.prompt.trim(),
-        type: question.type,
-        required: Boolean(question.required),
-        options: question.type === 'text' ? [] : (question.options ?? []).map((option) => option.trim()),
-        position: index,
-      }));
-
-      if (rows.length) {
-        const { error } = await supabase.from('questions').upsert(rows, { onConflict: 'id' });
-        if (error) throw error;
-      }
-      let deletion = supabase.from('questions').delete().eq('survey_id', id);
-      if (rows.length) deletion = deletion.not('id', 'in', `(${rows.map((row) => row.id).join(',')})`);
-      const { error: deletionError } = await deletion;
-      if (deletionError) throw deletionError;
-
-      if (!routeSurveyId) navigate(`/surveys/${id}/edit`, { replace: true });
-      setFeedback('설문을 저장했어요.');
-      return id;
-    } catch (error) {
-      setPageError(errorText(error, '저장하지 못했어요. SQL 스키마와 RLS 정책을 확인해 주세요.'));
-      return null;
-    } finally {
-      setSaving(false);
-    }
-  }, [description, navigate, questions, routeSurveyId, title, user?.id]);
-
-  const changePublication = async () => {
-    if (status !== 'published') {
-      const validationMessage = validateForPublish();
-      if (validationMessage) {
-        setPageError(validationMessage);
-        return;
-      }
-    }
-    const id = await saveSurvey();
-    if (!id) return;
-    setPublishing(true);
-    setPageError('');
-    const nextStatus = status === 'published' ? 'draft' : 'published';
-    const { error } = await supabase.from('surveys')
-      .update({ status: nextStatus })
-      .eq('id', id)
-      .eq('owner_id', user.id);
-    setPublishing(false);
-    if (error) {
-      setPageError(errorText(error, '발행 상태를 변경하지 못했어요.'));
-      return;
-    }
-    setStatus(nextStatus);
-    setFeedback(nextStatus === 'published' ? '설문을 발행했어요.' : '설문을 임시 저장 상태로 변경했어요.');
-  };
-
-  if (loading) return <div className="survey-loading survey-editor-loading" role="status"><LoaderCircle className="survey-spinner" size={23} /> 설문을 불러오고 있어요…</div>;
-
-  if (pageError && routeSurveyId && !title && !questions.length) {
-    return <div className="survey-page"><DatabaseNotice>{pageError}</DatabaseNotice><Link className="survey-button survey-button-secondary" to="/surveys"><ArrowLeft size={16} />내 설문으로</Link></div>;
-  }
-
-  const isBusy = saving || publishing;
-  return (
-    <section className="survey-page survey-editor-page">
-      <div className="survey-editor-heading">
-        <div>
-          <Link className="survey-back-link" to="/surveys"><ArrowLeft size={15} />내 설문</Link>
-          <h1>{routeSurveyId ? '설문 편집' : '새 설문 만들기'}</h1>
-          <p>질문을 작성하고 저장한 뒤, 응답 미리보기에서 내용을 확인해요.</p>
-        </div>
-        <div className="survey-editor-actions">
-          <button className="survey-button survey-button-secondary" type="button" onClick={() => setPreviewMode((value) => !value)} aria-pressed={previewMode}><Eye size={16} />{previewMode ? '편집으로 돌아가기' : '미리보기'}</button>
-          <button className="survey-button survey-button-secondary" type="button" onClick={saveSurvey} disabled={isBusy}><Save size={16} />{saving ? '저장 중…' : '임시 저장'}</button>
-          <button className="survey-button survey-button-primary" type="button" onClick={changePublication} disabled={isBusy}>{publishing ? <LoaderCircle className="survey-spinner" size={16} /> : <Check size={16} />}{status === 'published' ? '발행 취소' : '발행하기'}</button>
-        </div>
-      </div>
-
-      {pageError && <DatabaseNotice>{pageError}</DatabaseNotice>}
-      {feedback && <DatabaseNotice tone="success">{feedback}</DatabaseNotice>}
-      {status === 'published' && <DatabaseNotice tone="info">응답을 받을 수 있는 공개 설문이에요. 아래 링크를 공유하세요.</DatabaseNotice>}
-
-      {previewMode ? (
-        <SurveyLivePreview title={title} description={description} questions={questions} />
-      ) : (
-        <div className="survey-editor-layout">
-          <div className="survey-editor-main">
-            {status === 'published' && routeSurveyId && <SurveyShareLink surveyId={routeSurveyId} />}
-            <div className="survey-editor-card survey-details-card">
-              <div className="survey-card-heading"><span className="survey-step-number">01</span><div><h2>설문 기본 정보</h2><p>응답자가 보게 될 제목과 안내를 입력해요.</p></div></div>
-              <label className="survey-field-label" htmlFor="survey-title">설문 제목</label>
-              <input id="survey-title" className="survey-text-input survey-title-input" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} placeholder="예: 서비스 이용 경험을 들려주세요" />
-              <div className="survey-input-meta">{title.length}/120자</div>
-              <label className="survey-field-label" htmlFor="survey-description">설문 설명 <span>선택</span></label>
-              <textarea id="survey-description" className="survey-text-input survey-description-input" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} placeholder="설문의 목적이나 응답에 필요한 안내를 적어주세요." rows={3} />
-            </div>
-
-            <div className="survey-questions-heading">
-              <div><span className="survey-step-number">02</span><div><h2>질문</h2><p>질문 종류와 필수 응답 여부를 설정해요.</p></div></div>
-              <button className="survey-button survey-button-secondary survey-add-question" type="button" onClick={() => setQuestions((current) => [...current, createQuestion()])}><Plus size={16} />질문 추가</button>
-            </div>
-
-            {questions.length === 0 && <div className="survey-no-questions">질문을 추가하면 설문이 완성돼요.</div>}
-            <div className="survey-question-stack">
-              {questions.map((question, index) => (
-                <article className="survey-editor-card survey-question-card" key={question.id}>
-                  <div className="survey-question-topline">
-                    <span className="survey-question-number">질문 {String(index + 1).padStart(2, '0')}</span>
-                    <div className="survey-question-tools">
-                      <button className="survey-icon-action" type="button" disabled={index === 0} onClick={() => moveQuestion(index, -1)} aria-label={`${index + 1}번 질문 위로 이동`} title="위로 이동"><ArrowDown className="survey-arrow-up" size={16} /></button>
-                      <button className="survey-icon-action" type="button" disabled={index === questions.length - 1} onClick={() => moveQuestion(index, 1)} aria-label={`${index + 1}번 질문 아래로 이동`} title="아래로 이동"><ArrowDown size={16} /></button>
-                      <button className="survey-icon-action survey-delete-action" type="button" onClick={() => setQuestions((current) => current.filter((item) => item.id !== question.id))} aria-label={`${index + 1}번 질문 삭제`} title="질문 삭제"><Trash2 size={16} /></button>
-                    </div>
-                  </div>
-                  <label className="survey-field-label" htmlFor={`question-${question.id}`}>질문 내용</label>
-                  <input id={`question-${question.id}`} className="survey-text-input" value={question.prompt} onChange={(event) => updateQuestion(question.id, { prompt: event.target.value })} maxLength={300} placeholder="무엇을 알고 싶으신가요?" />
-                  <div className="survey-question-settings">
-                    <label className="survey-select-label">응답 유형
-                      <select className="survey-select" value={question.type} onChange={(event) => updateQuestion(question.id, { type: event.target.value })}>
-                        <option value="single">객관식 · 하나 선택</option>
-                        <option value="multiple">객관식 · 여러 개 선택</option>
-                        <option value="text">주관식 · 짧은 답변</option>
-                      </select>
-                    </label>
-                    <label className="survey-required-toggle"><input type="checkbox" checked={Boolean(question.required)} onChange={(event) => updateQuestion(question.id, { required: event.target.checked })} /><span className="survey-toggle-track" /><span>필수 응답</span></label>
-                  </div>
-                  {question.type !== 'text' && (
-                    <div className="survey-options-editor">
-                      <span className="survey-field-label">선택지</span>
-                      {(question.options ?? []).map((option, optionIndex) => (
-                        <div className="survey-option-row" key={`${question.id}-option-${optionIndex}`}>
-                          <span className={question.type === 'single' ? 'survey-option-control survey-option-radio' : 'survey-option-control'} aria-hidden="true" />
-                          <input className="survey-text-input" aria-label={`${index + 1}번 질문 선택지 ${optionIndex + 1}`} value={option} maxLength={120} onChange={(event) => updateOption(question.id, optionIndex, event.target.value)} placeholder={`선택지 ${optionIndex + 1}`} />
-                          <button className="survey-icon-action survey-delete-action" type="button" onClick={() => updateQuestion(question.id, { options: question.options.filter((_, i) => i !== optionIndex) })} aria-label={`선택지 ${optionIndex + 1} 삭제`}><X size={15} /></button>
-                        </div>
-                      ))}
-                      <button className="survey-add-option" type="button" onClick={() => updateQuestion(question.id, { options: [...(question.options ?? []), ''] })}><Plus size={14} />선택지 추가</button>
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
-            <button className="survey-add-question-bottom" type="button" onClick={() => setQuestions((current) => [...current, createQuestion()])}><Plus size={17} />질문 추가하기</button>
-          </div>
-
-          <aside className="survey-editor-aside">
-            <div className="survey-editor-card survey-publish-card">
-              <span className="survey-aside-kicker">저장 상태</span>
-              <span className={`survey-status survey-status-${status}`}><span />{statusLabels[status]}</span>
-              <p>{status === 'published' ? '발행된 설문이에요. 수정한 내용은 저장 후 반영됩니다.' : '임시 저장한 설문은 나만 볼 수 있어요.'}</p>
-              <button className="survey-button survey-button-primary survey-full-button" type="button" onClick={saveSurvey} disabled={isBusy}><Save size={16} />{saving ? '저장 중…' : '변경 내용 저장'}</button>
-              <Link className="survey-back-link survey-aside-back" to="/surveys"><ArrowLeft size={14} />목록으로 돌아가기</Link>
-              {status === 'published' && routeSurveyId && <Link className="survey-back-link survey-aside-back" to={`/surveys/${routeSurveyId}/responses`}><BarChart3 size={14} />응답 결과 보기</Link>}
-            </div>
-            <div className="survey-tip-card"><CircleHelp size={17} /><div><strong>발행 전 확인</strong><p>제목과 모든 질문을 작성하고, 객관식 질문에 서로 다른 선택지를 2개 이상 추가해 주세요.</p></div></div>
-            <div className="survey-tip-card survey-next-step-card"><Copy size={17} /><div><strong>공개 응답 링크</strong><p>발행된 설문은 비로그인 공개 페이지에서 응답을 받고 결과 화면에 저장합니다.</p></div></div>
-          </aside>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function SurveyLivePreview({ title, description, questions }) {
-  return (
-    <div className="survey-live-preview-wrap">
-      <div className="survey-live-preview-heading"><Eye size={17} /><span>응답자 미리보기</span></div>
-      <article className="survey-live-preview">
-        <div className="survey-preview-brand"><span className="survey-preview-mark" />모아 설문</div>
-        <h2>{title.trim() || '설문 제목을 입력해 주세요'}</h2>
-        {description.trim() && <p className="survey-preview-description">{description}</p>}
-        <div className="survey-preview-progress">질문 {questions.length}개</div>
-        {questions.length ? questions.map((question, index) => (
-          <section className="survey-preview-question" key={question.id}>
-            <h3>{index + 1}. {question.prompt || '질문 내용을 입력해 주세요'}{question.required && <span className="survey-required-mark">필수</span>}</h3>
-            {question.type === 'text' ? (
-              <textarea rows={3} disabled placeholder="답변을 입력해 주세요" />
-            ) : (question.options ?? []).map((option, optionIndex) => (
-              <div className="survey-preview-option" key={`${question.id}-${optionIndex}`}><span className={question.type === 'single' ? 'survey-option-control survey-option-radio' : 'survey-option-control'} />{option || `선택지 ${optionIndex + 1}`}</div>
-            ))}
-          </section>
-        )) : <p className="survey-preview-empty">질문을 추가하면 여기에 표시돼요.</p>}
-        <button className="survey-button survey-button-primary survey-preview-submit" type="button" disabled>미리보기 · 제출 불가</button>
-      </article>
-    </div>
   );
 }
 
@@ -561,6 +216,31 @@ export function SurveyPreviewPage() {
   );
 }
 
+function SurveyLivePreview({ title, description, questions }) {
+  return (
+    <div className="survey-live-preview-wrap">
+      <div className="survey-live-preview-heading"><FileText size={17} /><span>응답자 미리보기</span></div>
+      <article className="survey-live-preview">
+        <div className="survey-preview-brand"><span className="survey-preview-mark" />모아 설문</div>
+        <h2>{title.trim() || '설문 제목을 입력해 주세요'}</h2>
+        {description.trim() && <p className="survey-preview-description">{description}</p>}
+        <div className="survey-preview-progress">질문 {questions.length}개</div>
+        {questions.length ? questions.map((question, index) => (
+          <section className="survey-preview-question" key={question.id}>
+            <h3>{index + 1}. {question.prompt || '질문 내용을 입력해 주세요'}{question.required && <span className="survey-required-mark">필수</span>}</h3>
+            {question.type === 'text' ? (
+              <textarea rows={3} disabled placeholder="답변을 입력해 주세요" />
+            ) : (question.options ?? []).map((option, optionIndex) => (
+              <div className="survey-preview-option" key={`${question.id}-${optionIndex}`}><span className={question.type === 'single' ? 'survey-option-control survey-option-radio' : 'survey-option-control'} />{option || `선택지 ${optionIndex + 1}`}</div>
+            ))}
+          </section>
+        )) : <p className="survey-preview-empty">질문을 추가하면 여기에 표시돼요.</p>}
+        <button className="survey-button survey-button-primary survey-preview-submit" type="button" disabled>미리보기 · 제출 불가</button>
+      </article>
+    </div>
+  );
+}
+
 export function SurveyResponsesPage() {
   const { surveyId } = useParams();
   const { user } = useAuth();
@@ -579,6 +259,8 @@ export function SurveyResponsesPage() {
         setLoading(false);
         return;
       }
+      setLoading(true);
+      setError('');
       const { data: surveyData, error: surveyError } = await supabase.from('surveys')
         .select('id, title')
         .eq('id', surveyId)
@@ -641,11 +323,12 @@ export function SurveyResponsesPage() {
           {responses.map((response, index) => (
             <article className="survey-response-card" key={response.id}>
               <h2>응답 {responses.length - index}</h2>
-              <time>{new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(response.submitted_at))}</time>
+              <time>{response.submitted_at && !Number.isNaN(new Date(response.submitted_at).getTime()) ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(response.submitted_at)) : '시간 정보 없음'}</time>
               <div className="survey-response-answers">
                 {questions.map((question) => {
                   const answer = responseAnswers(response.id).find((item) => item.question_id === question.id);
-                  return <div className="survey-response-answer" key={question.id}><strong>{question.prompt}</strong><span>{answer ? Array.isArray(answer.value) ? answer.value.join(', ') : String(answer.value ?? '') : '응답 없음'}</span></div>;
+                  const answerValue = Array.isArray(answer?.value) ? answer.value.join(', ') : String(answer?.value ?? '').trim();
+                  return <div className="survey-response-answer" key={question.id}><strong>{question.prompt}</strong><span>{answerValue || '응답 없음'}</span></div>;
                 })}
               </div>
             </article>
@@ -670,6 +353,8 @@ export function ResultsIndexPage() {
         setLoading(false);
         return;
       }
+      setLoading(true);
+      setError('');
       const { data, error: queryError } = await supabase.from('surveys')
         .select('id, title, status, updated_at')
         .eq('owner_id', user.id)
@@ -714,6 +399,8 @@ export function ResultsDetailPage() {
         setLoading(false);
         return;
       }
+      setLoading(true);
+      setError('');
       const { data: surveyData, error: surveyError } = await supabase.from('surveys')
         .select('id, title, status')
         .eq('id', surveyId)
@@ -731,7 +418,7 @@ export function ResultsDetailPage() {
       ]);
       if (!active) return;
       if (questionResult.error || responseResult.error) {
-        setError('응답 데이터를 읽지 못했어요. `20261001020600` 응답 migration 적용을 확인해 주세요.');
+        setError('응답 데이터를 읽지 못했어요. 응답 SQL과 소유자 RLS 정책 적용을 확인해 주세요.');
         setLoading(false);
         return;
       }
@@ -759,6 +446,11 @@ export function ResultsDetailPage() {
     return () => { active = false; };
   }, [surveyId, user?.id]);
 
+  const questionSummaries = useMemo(
+    () => questions.map((question) => summarizeQuestion(question, answers, responses)),
+    [answers, questions, responses],
+  );
+
   if (loading) return <div className="survey-loading survey-editor-loading" role="status"><LoaderCircle className="survey-spinner" size={23} /> 결과를 불러오고 있어요…</div>;
   if (error || !survey) return <section className="survey-page"><DatabaseNotice>{error || '설문을 찾을 수 없어요.'}</DatabaseNotice><Link className="survey-button survey-button-secondary" to="/results"><ArrowLeft size={16} />분석 목록으로</Link></section>;
 
@@ -768,40 +460,20 @@ export function ResultsDetailPage() {
         <div><Link className="survey-back-link" to="/results"><ArrowLeft size={15} />응답 분석</Link><h1>{survey.title}</h1><p>총 응답 {responses.length}건 · 질문 {questions.length}개</p></div>
         <div className="survey-editor-actions"><Link className="survey-button survey-button-secondary" to={`/surveys/${surveyId}/responses`}>개별 응답 보기<ArrowRight size={15} /></Link><Link className="survey-button survey-button-secondary" to={`/surveys/${surveyId}/edit`}>설문 편집<ArrowRight size={15} /></Link></div>
       </div>
-      {questions.map((question, index) => {
-        const questionAnswers = answers.filter((answer) => answer.question_id === question.id);
-        const isChoice = question.type === 'single' || question.type === 'multiple';
-        const counts = new Map((question.options ?? []).map((option) => [option, 0]));
-        if (isChoice) {
-          questionAnswers.forEach((answer) => {
-            const values = Array.isArray(answer.value) ? answer.value : [answer.value];
-            values.forEach((value) => {
-              if (typeof value === 'string' && counts.has(value)) counts.set(value, counts.get(value) + 1);
-            });
-          });
-        }
-        const totalSelections = Array.from(counts.values()).reduce((sum, count) => sum + count, 0);
-        return (
-          <article className="survey-result-card" key={question.id}>
-            <header className="survey-result-heading"><span className="survey-result-number">질문 {String(index + 1).padStart(2, '0')}</span><h2>{question.prompt}</h2><span className="survey-result-response-count">유효 응답 {questionAnswers.length}건</span></header>
-            {isChoice ? (
-              <div className="survey-result-options">
-                {(question.options ?? []).map((option) => {
-                  const count = counts.get(option) ?? 0;
-                  const percent = totalSelections ? Math.round((count / totalSelections) * 100) : 0;
-                  return <div className="survey-result-option" key={option}><div className="survey-result-option-label"><span>{option}</span><strong>{count} <small>({percent}%)</small></strong></div><div className="survey-result-bar"><span style={{ width: `${percent}%` }} /></div></div>;
-                })}
-                <p className="survey-result-footnote">복수 선택 질문은 선택 횟수 합계를 기준으로 비율을 계산합니다.</p>
-              </div>
-            ) : (
-              <div className="survey-result-text-list">
-                {questionAnswers.length ? questionAnswers.map((answer) => <blockquote key={answer.response_id}>{String(answer.value ?? '')}</blockquote>) : <p className="survey-result-empty">아직 이 질문의 주관식 응답이 없어요.</p>}
-              </div>
-            )}
-          </article>
-        );
-      })}
-      {responses.length > 0 && <div className="survey-result-time-card"><h2>최근 제출</h2>{responses.slice(0, 10).map((response) => <time key={response.id}>{new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(response.submitted_at))}</time>)}</div>}
+      {responses.length > 0 && <div className="results-summary-grid" aria-label="응답 요약"><article className="results-summary-card"><span className="results-summary-icon"><BarChart3 size={18} /></span><span>총 응답</span><strong>{responses.length}</strong></article><article className="results-summary-card"><span className="results-summary-icon results-summary-icon-blue"><FileText size={18} /></span><span>질문 수</span><strong>{questions.length}</strong></article><article className="results-summary-card"><span className="results-summary-icon results-summary-icon-orange"><FileText size={18} /></span><span>최근 응답</span><strong className="results-date-value">{responses[0]?.submitted_at && !Number.isNaN(new Date(responses[0].submitted_at).getTime()) ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(responses[0].submitted_at)) : '시간 정보 없음'}</strong></article></div>}
+      {responses.length > 0 ? questionSummaries.map((question, index) => (
+        <article className="survey-result-card" key={question.id}>
+          <header className="survey-result-heading"><span className="survey-result-number">질문 {String(index + 1).padStart(2, '0')}</span><h2>{question.prompt}</h2><span className="survey-result-response-count">응답 {question.total}건</span></header>
+          {question.type === 'text' ? (
+            <div className="survey-result-text-list">{question.textAnswers.length ? question.textAnswers.map((answer) => <blockquote key={answer.id}><p>{answer.value}</p><time>{answer.submittedAt && !Number.isNaN(new Date(answer.submittedAt).getTime()) ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(answer.submittedAt)) : '시간 정보 없음'}</time></blockquote>) : <p className="survey-result-empty">아직 주관식 응답이 없어요.</p>}</div>
+          ) : (
+            <div className="survey-result-options">{question.options.map(({ label, count, percentage }) => <div className="survey-result-option" key={label}><div className="survey-result-option-label"><span>{label}</span><strong>{count}명 <small>({percentage}%)</small></strong></div><div className="survey-result-bar"><span style={{ width: `${percentage}%` }} /></div></div>)}{question.type === 'multiple' && <p className="survey-result-footnote">복수 선택 비율은 응답자 기준이며, 합계가 100%를 넘을 수 있습니다.</p>}</div>
+          )}
+        </article>
+      )) : <div className="survey-empty-state"><span className="survey-empty-icon"><BarChart3 size={25} /></span><h2>아직 제출된 응답이 없어요</h2><p>공개 응답 링크를 공유하면 질문별 결과가 여기에 표시됩니다.</p></div>}
+      {responses.length > 0 && <div className="survey-result-time-card"><h2>최근 제출</h2>{responses.slice(0, 10).map((response) => <time key={response.id}>{response.submitted_at && !Number.isNaN(new Date(response.submitted_at).getTime()) ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(response.submitted_at)) : '시간 정보 없음'}</time>)}</div>}
     </section>
   );
 }
+
+export { summarizeQuestion };

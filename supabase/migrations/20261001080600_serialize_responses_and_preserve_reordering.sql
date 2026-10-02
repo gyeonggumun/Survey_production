@@ -15,6 +15,7 @@ declare
   v_position_only_insert boolean := false;
 begin
   if tg_op = 'INSERT' then
+    -- upsert가 기존 질문 ID를 사용했는지 찾아 순서 변경만인지 구분합니다.
     select question.*
       into v_existing
     from public.questions as question
@@ -38,8 +39,8 @@ begin
     v_survey_ids := array[old.survey_id];
   end if;
 
-  -- 응답 저장 함수와 같은 설문 행을 잠가 응답 검증과 질문 변경이
-  -- 서로 다른 질문 구조를 기준으로 동시에 진행되지 않도록 합니다.
+  -- 제출 RPC와 같은 설문 행을 잠가 응답 검증과 질문 변경이 동시에
+  -- 서로 다른 질문 상태를 기준으로 진행되지 않도록 합니다.
   -- 여러 설문을 옮기는 직접 UPDATE도 일정한 순서로 잠가 교착을 줄입니다.
   for v_survey_id in
     select distinct survey_ids.id
@@ -78,8 +79,8 @@ begin
        select 1 from public.responses as response
        where response.survey_id = new.survey_id
      ) then
-    -- INSERT .. ON CONFLICT DO UPDATE 순서 저장은 기존 질문 행과 구조가
-    -- 동일한 경우에만 이 경로로 허용합니다. 실제 INSERT는 이후 UPDATE가 수행합니다.
+    -- 구조가 같은 기존 질문의 upsert만 통과시킵니다.
+    -- 실제 위치 변경은 INSERT .. ON CONFLICT의 UPDATE에서 처리됩니다.
     return new;
   end if;
 
@@ -240,6 +241,7 @@ begin
     end if;
   end loop;
 
+  -- 모든 답변 검증을 마친 뒤 응답 본문과 각 답변을 같은 트랜잭션에 저장합니다.
   insert into public.responses (survey_id)
   values (p_survey_id)
   returning id into v_response_id;
@@ -254,6 +256,7 @@ begin
 end;
 $$;
 
+-- 공개 사용자는 테이블 직접 쓰기 대신 검증 RPC만 호출할 수 있습니다.
 revoke all on function public.submit_survey_response(uuid, jsonb) from public;
 grant execute on function public.submit_survey_response(uuid, jsonb) to anon, authenticated;
 
