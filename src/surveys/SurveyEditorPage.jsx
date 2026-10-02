@@ -3,10 +3,13 @@ import { ArrowDown, ArrowLeft, ArrowRight, Check, CircleHelp, Eye, LoaderCircle,
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { supabase } from '../lib/supabase.js';
+import { getSurveyPublishError } from './surveyValidation.js';
 import SurveyShareLink from './SurveyShareLink.jsx';
 import './surveys.css';
 
 const statusLabels = { draft: '임시 저장', published: '발행됨' };
+
+// 새 질문과 선택지마다 DB에서 사용할 고유 ID를 만듭니다.
 const createId = () => globalThis.crypto?.randomUUID?.() ?? 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
   const random = Math.floor(Math.random() * 16);
   return (char === 'x' ? random : (random & 0x3) | 0x8).toString(16);
@@ -21,6 +24,7 @@ export default function SurveyEditorPage() {
   const { surveyId: routeSurveyId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  // 새 설문 저장 직후에도 생성된 ID를 참조해 같은 화면에서 이어서 저장합니다.
   const surveyIdRef = useRef(routeSurveyId ?? null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -40,18 +44,21 @@ export default function SurveyEditorPage() {
       setPageError(''); setFeedback(''); setLoading(false);
       return undefined;
     }
+    // 화면 이동 후 이전 조회 결과가 상태를 덮어쓰지 않도록 활성 여부를 확인합니다.
     let active = true;
     async function loadSurvey() {
       if (!supabase || !user?.id) {
         setPageError('Supabase 연결 또는 로그인 정보를 확인해 주세요.'); setLoading(false); return;
       }
       setLoading(true); setPageError('');
+      // 소유자 조건을 조회에 포함해 본인 설문만 편집기에 불러옵니다.
       const { data: survey, error: surveyError } = await supabase.from('surveys')
         .select('id, title, description, status').eq('id', routeSurveyId).eq('owner_id', user.id).maybeSingle();
       if (!active) return;
       if (surveyError || !survey) {
         setPageError(surveyError?.message || '설문을 찾을 수 없거나 열람 권한이 없어요.'); setLoading(false); return;
       }
+      // 질문은 저장된 순서대로 불러와 편집 화면에 표시합니다.
       const { data: rows, error: questionError } = await supabase.from('questions')
         .select('id, prompt, type, required, options, position').eq('survey_id', routeSurveyId).order('position', { ascending: true });
       if (!active) return;
@@ -72,12 +79,14 @@ export default function SurveyEditorPage() {
     try {
       let id = surveyIdRef.current;
       if (id) {
+        // 기존 설문을 소유자 조건과 함께 갱신하고, 대상이 사라졌는지도 확인합니다.
         const { data, error } = await supabase.from('surveys')
           .update({ title: title.trim() || '제목 없는 설문', description: description.trim() })
           .eq('id', id).eq('owner_id', user.id).select('id').maybeSingle();
         if (error) throw error;
         if (!data) throw new Error('설문이 삭제되었거나 수정 권한이 없습니다.');
       } else {
+        // 새 설문을 먼저 만들고 이후 질문 저장에 사용할 ID를 확보합니다.
         const { data, error } = await supabase.from('surveys')
           .insert({ owner_id: user.id, title: title.trim() || '제목 없는 설문', description: description.trim(), status: 'draft' })
           .select('id').single();
@@ -85,6 +94,7 @@ export default function SurveyEditorPage() {
         id = data.id; surveyIdRef.current = id;
       }
 
+      // 화면 상태를 DB RPC가 받는 질문 형식으로 정규화합니다.
       const payload = questions.map((question) => ({
         id: question.id,
         prompt: question.prompt.trim(),
@@ -92,6 +102,7 @@ export default function SurveyEditorPage() {
         required: Boolean(question.required),
         options: question.type === 'text' ? [] : (question.options ?? []).map((option) => option.trim()),
       }));
+      // RPC가 질문 저장과 위치 변경을 한 번에 처리해 순서 중복과 응답 이력 훼손을 방지합니다.
       const { error: questionSaveError } = await supabase.rpc('save_survey_questions', {
         p_survey_id: id,
         p_questions: payload,
@@ -107,37 +118,24 @@ export default function SurveyEditorPage() {
     } finally { setSaving(false); }
   }, [description, navigate, questions, routeSurveyId, title, user?.id]);
 
-  const validateForPublish = () => {
-    if (!title.trim()) return '발행하려면 설문 제목을 입력해 주세요.';
-    if (!questions.length) return '발행하려면 질문을 하나 이상 추가해 주세요.';
-    for (let index = 0; index < questions.length; index += 1) {
-      const question = questions[index];
-      if (!question.prompt.trim()) return `${index + 1}번 질문 내용을 입력해 주세요.`;
-      if (question.type !== 'text') {
-        const options = question.options ?? [];
-        if (options.length < 2 || options.some((option) => !option.trim()) || new Set(options.map((option) => option.trim())).size !== options.length) {
-          return `${index + 1}번 질문에 서로 다른 선택지를 2개 이상 입력해 주세요.`;
-        }
-      }
-    }
-    return '';
-  };
-
   const changePublication = async () => {
     if (status !== 'published') {
-      const validation = validateForPublish();
+      // 발행 전에 먼저 사용자 친화적인 검증 메시지를 안내합니다.
+      const validation = getSurveyPublishError(title, questions);
       if (validation) { setPageError(validation); return; }
     }
     const id = await saveSurvey();
     if (!id) return;
     setPublishing(true); setPageError('');
     const nextStatus = status === 'published' ? 'draft' : 'published';
+    // 발행 최종 검증과 권한 확인은 DB의 정책 및 트리거에서도 수행됩니다.
     const { error } = await supabase.from('surveys').update({ status: nextStatus }).eq('id', id).eq('owner_id', user.id);
     setPublishing(false);
     if (error) setPageError(error.message || '발행 상태를 변경하지 못했어요.');
     else { setStatus(nextStatus); setFeedback(nextStatus === 'published' ? '설문을 발행했어요.' : '설문을 임시 저장 상태로 변경했어요.'); }
   };
 
+  // ID에 해당하는 질문만 변경해 나머지 질문 상태를 유지합니다.
   const updateQuestion = (id, changes) => setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...changes } : question));
   const isBusy = saving || publishing;
 

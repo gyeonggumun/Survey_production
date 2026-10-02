@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase.js';
 import './surveys.css';
 import './public-survey.css';
 
+// DB/RPC 오류를 응답자가 다음에 취할 행동을 알 수 있는 안내로 바꿉니다.
 function errorMessage(error) {
   const message = error?.message ?? '';
   if (/published survey|발행된 설문/i.test(message)) return '이 설문은 발행되지 않았거나 더 이상 응답을 받을 수 없어요.';
@@ -25,6 +26,7 @@ export default function PublicSurveyPage() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
+    // URL이 바뀌거나 화면을 벗어난 뒤 오래된 조회 결과가 반영되지 않게 합니다.
     let active = true;
 
     async function loadSurvey() {
@@ -36,6 +38,7 @@ export default function PublicSurveyPage() {
 
       setLoading(true);
       setError('');
+      // 공개 응답 화면에서는 발행 상태인 설문만 가져옵니다.
       const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
         .select('id, title, description, status')
@@ -52,6 +55,7 @@ export default function PublicSurveyPage() {
         return;
       }
 
+      // 질문을 정해진 순서로 불러와 유형별 빈 답변 상태를 준비합니다.
       const { data: questionRows, error: questionError } = await supabase
         .from('questions')
         .select('id, prompt, type, required, options, position')
@@ -83,6 +87,7 @@ export default function PublicSurveyPage() {
     setAnswers((current) => ({ ...current, [questionId]: value }));
   };
 
+  // 복수 선택 항목은 이미 선택했으면 제거하고, 아니면 목록에 추가합니다.
   const toggleMultipleAnswer = (questionId, option) => {
     setAnswers((current) => {
       const selected = Array.isArray(current[questionId]) ? current[questionId] : [];
@@ -99,6 +104,7 @@ export default function PublicSurveyPage() {
     event.preventDefault();
     setError('');
 
+    // 필수 질문이 비어 있으면 제출 전에 알려주고 해당 질문으로 포커스를 이동합니다.
     const missingRequired = questions.find((question) => {
       if (!question.required) return false;
       const value = answers[question.id];
@@ -116,6 +122,7 @@ export default function PublicSurveyPage() {
     }
 
     setSubmitting(true);
+    // RPC가 요구하는 질문 ID와 답변 값 배열로 변환합니다.
     const payload = questions.map((question) => ({
       question_id: question.id,
       value: question.type === 'multiple'
@@ -124,6 +131,7 @@ export default function PublicSurveyPage() {
     }));
 
     try {
+      // 서버 측 RPC가 발행 상태, 질문 종류, 선택지와 필수 입력을 최종 검증합니다.
       const { error: submitError } = await supabase.rpc('submit_survey_response', {
         p_survey_id: surveyId,
         p_answers: payload,
