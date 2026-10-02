@@ -4,7 +4,10 @@ import './share.css';
 
 export default function SurveyShareLink({ surveyId }) {
   const [copied, setCopied] = useState(false);
-  const publicUrl = `${window.location.origin}/s/${surveyId}`;
+  const publicOrigin = window.location.hostname.endsWith('.vercel.app')
+    ? 'https://survey-production.vercel.app'
+    : window.location.origin;
+  const publicUrl = `${publicOrigin}/s/${surveyId}`;
 
   const copyLink = async () => {
     try {

@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import App from '../App.jsx';
 import PublicSurveyPage from '../surveys/PublicSurveyPage.jsx';
 import SurveyFlow from '../surveys/SurveyFlow.jsx';
@@ -24,7 +24,9 @@ export default function AuthGate() {
   const location = useLocation();
 
   // 공개 설문 응답은 로그인 없이 접근할 수 있습니다.
-  if (/^\/s\/[^/]+\/?$/.test(location.pathname)) return <PublicSurveyPage />;
+  if (/^\/s\/[^/]+\/?$/.test(location.pathname)) {
+    return <Routes><Route path="/s/:surveyId" element={<PublicSurveyPage />} /></Routes>;
+  }
 
   if (isLoading) return <SessionLoadingScreen />;
 
