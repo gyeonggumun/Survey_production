@@ -77,23 +77,6 @@ export default function SurveyEditorPage() {
     if (!supabase || !user?.id) { setPageError('Supabase 연결 또는 로그인 정보를 확인해 주세요.'); return null; }
     setSaving(true); setPageError(''); setFeedback('');
     try {
-      let id = surveyIdRef.current;
-      if (id) {
-        // 기존 설문을 소유자 조건과 함께 갱신하고, 대상이 사라졌는지도 확인합니다.
-        const { data, error } = await supabase.from('surveys')
-          .update({ title: title.trim() || '제목 없는 설문', description: description.trim() })
-          .eq('id', id).eq('owner_id', user.id).select('id').maybeSingle();
-        if (error) throw error;
-        if (!data) throw new Error('설문이 삭제되었거나 수정 권한이 없습니다.');
-      } else {
-        // 새 설문을 먼저 만들고 이후 질문 저장에 사용할 ID를 확보합니다.
-        const { data, error } = await supabase.from('surveys')
-          .insert({ owner_id: user.id, title: title.trim() || '제목 없는 설문', description: description.trim(), status: 'draft' })
-          .select('id').single();
-        if (error) throw error;
-        id = data.id; surveyIdRef.current = id;
-      }
-
       // 화면 상태를 DB RPC가 받는 질문 형식으로 정규화합니다.
       const payload = questions.map((question) => ({
         id: question.id,
@@ -102,12 +85,15 @@ export default function SurveyEditorPage() {
         required: Boolean(question.required),
         options: question.type === 'text' ? [] : (question.options ?? []).map((option) => option.trim()),
       }));
-      // RPC가 질문 저장과 위치 변경을 한 번에 처리해 순서 중복과 응답 이력 훼손을 방지합니다.
-      const { error: questionSaveError } = await supabase.rpc('save_survey_questions', {
-        p_survey_id: id,
+      // 설문 정보와 질문을 하나의 DB 트랜잭션에서 저장합니다.
+      const { data: id, error: saveError } = await supabase.rpc('save_survey', {
+        p_survey_id: surveyIdRef.current,
+        p_title: title,
+        p_description: description,
         p_questions: payload,
       });
-      if (questionSaveError) throw questionSaveError;
+      if (saveError) throw saveError;
+      surveyIdRef.current = id;
 
       if (!routeSurveyId) navigate(`/surveys/${id}/edit`, { replace: true });
       setFeedback('설문과 질문을 저장했어요.');
