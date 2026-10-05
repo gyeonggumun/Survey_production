@@ -35,6 +35,7 @@ DB 변경의 기준은 `supabase/migrations/`입니다. 마이그레이션은 �
 5. `20261001080506_validate_published_surveys.sql` — 기존 발행 설문 검사와 DB 유효성 검증
 6. `20261002023721_serialize_responses_and_preserve_reordering.sql` — 응답 제출과 질문 변경 직렬화, 응답 이력이 있는 설문의 질문 순서 저장 허용
 7. `20261002024231_restrict_survey_table_grants.sql` — 공개·로그인 역할의 테이블 권한을 필요한 범위로 제한
+8. `20261005121903_save_survey_atomically.sql` — 설문 정보와 질문을 단일 트랜잭션에서 저장
 
 기존 `supabase/schema.sql`은 핵심 설문 테이블에 대한 이전 수동 설치용 참고 파일이며, 응답 저장까지 포함한 현재 전체 설치에서는 실행하지 마세요.
 
@@ -64,7 +65,7 @@ DB 변경의 기준은 `supabase/migrations/`입니다. 마이그레이션은 �
 
 GitHub 저장소의 배포 브랜치를 Vercel 프로젝트에 연결합니다. 프레임워크는 Vite, 빌드 명령은 `npm run build`, 출력 디렉터리는 `dist`입니다. Production/Preview에 위 두 `VITE_SUPABASE_*` 환경 변수를 설정한 후 배포합니다. `vercel.json`은 브라우저 새로고침 시 SPA 경로를 `index.html`로 재작성합니다.
 
-현재 `gyeonggumun/Survey_production`의 `main` 푸시는 Vercel `survey-production`에 자동 배포됩니다. **DB migration은 Vercel이 자동 실행하지 않습니다.** DB 변경은 먼저 `db push --dry-run` 결과에서 적용 대상을 확인한 다음 직접 적용하세요. 프로젝트 ref가 본인 DB와 일치하는지 반드시 점검하고, 키와 DB 비밀번호는 저장소에 커밋하지 않습니다.
+현재 `gyeonggumun/Survey_production`의 `main` 푸시는 Vercel `survey-production`에 자동 배포됩니다. `npm run build`가 11개 단위 테스트를 먼저 실행하므로 실패하면 Vercel 빌드도 중단됩니다. GitHub Actions도 PR과 `main` 푸시에서 같은 빌드를 검사합니다. **DB migration은 Vercel이 자동 실행하지 않습니다.** DB 변경은 먼저 `db push --dry-run` 결과에서 적용 대상을 확인한 다음 직접 적용하세요. 프로젝트 ref가 본인 DB와 일치하는지 반드시 점검하고, 키와 DB 비밀번호는 저장소에 커밋하지 않습니다.
 
 ## 현재 구현 내용
 
@@ -83,11 +84,16 @@ GitHub 저장소의 배포 브랜치를 Vercel 프로젝트에 연결합니다. 
 
 실제 `/surveys/*` 및 `/results/*` 라우트는 `SurveyFlow.jsx`에서 연결합니다. 화면 컴포넌트 export는 `SurveyPageComponents.jsx`를 통해 모으고, 설문 편집은 `SurveyEditorPage.jsx` 한 가지 구현을 사용합니다. `SurveyPages.jsx`에는 목록·미리보기·응답 및 결과 화면이 남아 있습니다. 결과 페이지 구현도 `ResultsDetailPage` 하나로 통합했고, `ResultsPage.jsx`는 이전 import의 호환성을 위한 재내보내기 파일입니다.
 
-설문 편집기는 `save_survey_questions` RPC를 사용해 질문 변경을 트랜잭션으로 저장합니다. 브라우저에서 `questions` 테이블에 개별 upsert/delete를 직접 수행하는 대체 저장 경로는 쓰지 않습니다. 이 RPC를 추가한 migration이 원격 DB에도 적용되어 있어야 저장이 동작합니다.
+설문 편집기는 `save_survey` RPC로 제목·설명·질문을 한 트랜잭션에서 저장합니다. 내부에서 기존 `save_survey_questions` 함수를 호출하며, 질문 검증·저장이 실패하면 설문 정보 변경도 롤백됩니다. 두 RPC를 추가한 migration이 원격 DB에도 적용되어 있어야 저장이 동작합니다. MVP에 실제 설정 기능이 없으므로 미완성 설정 메뉴는 표시하지 않습니다.
 
 ## 테스트 및 배포 전 확인
 
-2026-10-02에 연결된 Supabase 프로젝트의 마이그레이션 7개 적용 기록과 함수 정의를 확인했습니다. 롤백형 DB 테스트에서 응답 제출, 응답 후 질문 순서 변경, 질문 내용 변경 차단을 검증했고, 역할별 테이블 권한도 확인했습니다. 프런트엔드 자동 테스트 11개와 프로덕션 빌드가 통과했습니다. 실제 브라우저에서 회원가입부터 응답 제출까지의 전체 흐름은 별도로 확인해야 합니다. 이후 다른 프로젝트에 적용할 때는 프로젝트 ref, `db push --dry-run` 결과, 백업 여부를 먼저 점검하세요.
+2026-10-05에 연결된 Supabase 프로젝트의 마이그레이션 8개 적용 기록을 확인했습니다. 롤백형 DB 테스트에서 기존 응답·질문 보호 동작과 새 설문의 원자 저장, 질문 오류 시 제목 변경 롤백, 역할별 함수 실행 권한을 확인했습니다. 프런트엔드 자동 테스트 11개와 프로덕션 빌드가 통과했고, 배포 주소에서 공개 설문 페이지와 모바일 화면이 열리는 것도 확인했습니다. 로그인 후 설문 작성부터 응답 제출·결과 확인까지의 브라우저 전체 흐름은 별도로 검증해야 합니다. 이후 다른 프로젝트에 적용할 때는 프로젝트 ref, `db push --dry-run` 결과, 백업 여부를 먼저 점검하세요.
+
+## 운영 보안 참고
+
+- 공개 응답용 `submit_survey_response`는 비로그인 응답을 위해 `anon`과 `authenticated`가 호출할 수 있는 `SECURITY DEFINER` 함수입니다. 함수 내부에서 발행 상태·질문·답변을 검증하고, 응답 테이블의 직접 쓰기 권한은 제한되어 있습니다. Supabase Advisor의 관련 경고는 의도된 공개 기능에 따른 것이며, 외부 공개 규모가 커지면 별도의 봇 방지·요청 제한 방식을 결정해야 합니다.
+- Supabase Advisor의 유출 비밀번호 보호 경고는 남아 있습니다. [Supabase 문서](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)에 따르면 해당 기능은 Pro 이상에서 제공되므로, 요금제 변경 없이 활성화할 수 없습니다. 회원가입 화면은 현재 8자 이상 비밀번호를 요구합니다.
 
 ## GitHub에 올리기 전 비밀 파일 이중 점검
 
