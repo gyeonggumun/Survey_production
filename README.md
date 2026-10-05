@@ -4,7 +4,7 @@ React + Vite 기반 설문 서비스 MVP입니다. Supabase 이메일 인증, �
 
 ## 로컬 실행
 
-필요 환경: Node.js 18 이상, npm
+필요 환경: Node.js 22.x, npm
 
 ```bash
 npm ci
