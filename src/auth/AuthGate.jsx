@@ -30,8 +30,11 @@ export default function AuthGate() {
 
   if (isLoading) return <SessionLoadingScreen />;
 
+  // 비밀번호 복구 링크는 세션이 생성된 뒤에도 재설정 화면에 남아야 합니다.
+  if (location.pathname === '/reset-password') return <AuthPage key="reset-password" />;
+
   if (location.pathname === '/auth') {
-    return user ? <Navigate to="/" replace /> : <AuthPage />;
+    return user ? <Navigate to="/" replace /> : <AuthPage key="auth" />;
   }
 
   if (!user) {

@@ -31,6 +31,9 @@ function getAuthErrorMessage(error) {
   if (code.includes('weak_password') || message.includes('password should be')) {
     return '비밀번호 기준을 확인해 주세요. 8자 이상으로 설정하는 것을 권장합니다.';
   }
+  if (code.includes('same_password')) {
+    return '기존 비밀번호와 다른 비밀번호를 입력해 주세요.';
+  }
   if (code.includes('redirect_to_not_allowed') || message.includes('redirect url')) {
     return 'Supabase 인증 설정에서 현재 사이트 주소를 허용된 리디렉션 URL에 추가해 주세요.';
   }
@@ -51,10 +54,10 @@ function getSafeReturnPath(location) {
 }
 
 export default function AuthPage() {
-  const { isConfigured, signIn, signUp } = useAuth();
+  const { user, isConfigured, signIn, signUp, requestPasswordReset, updatePassword } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [mode, setMode] = useState('login');
+  const [mode, setMode] = useState(location.pathname === '/reset-password' ? 'reset-password' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -74,13 +77,41 @@ export default function AuthPage() {
     setErrorMessage('');
     setNoticeMessage('');
 
-    if (mode === 'signup' && password !== passwordConfirmation) {
+    if ((mode === 'signup' || mode === 'reset-password') && password !== passwordConfirmation) {
       setErrorMessage('비밀번호 확인이 일치하지 않습니다. 다시 확인해 주세요.');
       return;
     }
 
     setIsSubmitting(true);
     try {
+      if (mode === 'forgot') {
+        const { error } = await requestPasswordReset(email.trim(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) {
+          setErrorMessage(getAuthErrorMessage(error));
+          return;
+        }
+        setNoticeMessage('해당 이메일로 가입된 계정이 있다면 비밀번호 재설정 링크를 보냈어요. 메일함을 확인해 주세요.');
+        return;
+      }
+
+      if (mode === 'reset-password') {
+        if (!user) {
+          setErrorMessage('재설정 링크가 유효하지 않거나 만료됐어요. 로그인 화면에서 새 링크를 요청해 주세요.');
+          return;
+        }
+        const { error } = await updatePassword(password);
+        if (error) {
+          setErrorMessage(getAuthErrorMessage(error));
+          return;
+        }
+        setPassword('');
+        setPasswordConfirmation('');
+        navigate('/', { replace: true });
+        return;
+      }
+
       if (mode === 'signup') {
         const { data, error } = await signUp({
           email: email.trim(),
@@ -162,14 +193,12 @@ export default function AuthPage() {
           <div className="auth-card">
             <div className="auth-card-icon" aria-hidden="true"><LockKeyhole size={21} /></div>
             <span className="auth-card-kicker">WELCOME TO MOA</span>
-            <h2 id="auth-heading">{mode === 'login' ? '다시 만나 반가워요' : '새 계정을 만들어요'}</h2>
+            <h2 id="auth-heading">{{ login: '다시 만나 반가워요', signup: '새 계정을 만들어요', forgot: '비밀번호를 다시 설정해요', 'reset-password': '새 비밀번호를 입력해요' }[mode]}</h2>
             <p className="auth-card-description">
-              {mode === 'login'
-                ? '이메일과 비밀번호로 로그인해 작업을 이어가세요.'
-                : '이메일 주소를 등록하고 모아 설문을 시작해 보세요.'}
+              {{ login: '이메일과 비밀번호로 로그인해 작업을 이어가세요.', signup: '이메일 주소를 등록하고 모아 설문을 시작해 보세요.', forgot: '가입한 이메일로 재설정 링크를 보내 드려요.', 'reset-password': '계정에 사용할 새 비밀번호를 입력해 주세요.' }[mode]}
             </p>
 
-            <div className="auth-mode-tabs" role="tablist" aria-label="계정 작업 선택">
+            {(mode === 'login' || mode === 'signup') && <div className="auth-mode-tabs" role="tablist" aria-label="계정 작업 선택">
               <button
                 type="button"
                 role="tab"
@@ -184,7 +213,7 @@ export default function AuthPage() {
                 className={mode === 'signup' ? 'auth-mode-tab auth-mode-tab-active' : 'auth-mode-tab'}
                 onClick={() => chooseMode('signup')}
               >회원가입</button>
-            </div>
+            </div>}
 
             {!isConfigured && (
               <div className="auth-feedback auth-feedback-setup" role="alert">
@@ -205,7 +234,7 @@ export default function AuthPage() {
             )}
 
             <form className="auth-form" onSubmit={handleSubmit}>
-              <div className="auth-field">
+              {mode !== 'reset-password' && <div className="auth-field">
                 <label htmlFor="auth-email">이메일</label>
                 <div className="auth-input-shell">
                   <Mail size={17} aria-hidden="true" />
@@ -222,9 +251,9 @@ export default function AuthPage() {
                     disabled={!isConfigured || busy}
                   />
                 </div>
-              </div>
+              </div>}
 
-              <div className="auth-field">
+              {mode !== 'forgot' && <div className="auth-field">
                 <label htmlFor="auth-password">비밀번호</label>
                 <div className="auth-input-shell">
                   <LockKeyhole size={17} aria-hidden="true" />
@@ -236,7 +265,7 @@ export default function AuthPage() {
                     placeholder={mode === 'login' ? '비밀번호를 입력해 주세요' : '8자 이상 입력해 주세요'}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    minLength={mode === 'signup' ? 8 : undefined}
+                    minLength={mode === 'signup' || mode === 'reset-password' ? 8 : undefined}
                     required
                     disabled={!isConfigured || busy}
                   />
@@ -251,10 +280,10 @@ export default function AuthPage() {
                     {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
                   </button>
                 </div>
-                {mode === 'signup' && <span className="auth-field-hint">비밀번호는 8자 이상으로 입력해 주세요.</span>}
-              </div>
+                {mode !== 'login' && <span className="auth-field-hint">비밀번호는 8자 이상으로 입력해 주세요.</span>}
+              </div>}
 
-              {mode === 'signup' && (
+              {(mode === 'signup' || mode === 'reset-password') && (
                 <div className="auth-field">
                   <label htmlFor="auth-password-confirmation">비밀번호 확인</label>
                   <div className="auth-input-shell">
@@ -281,14 +310,16 @@ export default function AuthPage() {
                     ? 'Supabase 설정이 필요해요'
                     : busy
                       ? '처리 중이에요'
-                      : mode === 'login'
-                        ? '로그인'
-                        : '계정 만들기'}
+                      : { login: '로그인', signup: '계정 만들기', forgot: '재설정 링크 보내기', 'reset-password': '비밀번호 변경하기' }[mode]}
                 </span>
                 {!busy && isConfigured && <ArrowRight size={17} aria-hidden="true" />}
                 {busy && <span className="auth-spinner" aria-hidden="true" />}
               </button>
             </form>
+
+            {mode === 'login' && <button className="auth-text-button" type="button" onClick={() => chooseMode('forgot')}>비밀번호를 잊으셨나요?</button>}
+            {mode === 'forgot' && <button className="auth-text-button" type="button" onClick={() => chooseMode('login')}>로그인으로 돌아가기</button>}
+            {mode === 'reset-password' && !user && <Link className="auth-text-button" to="/auth">로그인 화면으로 돌아가기</Link>}
 
             <div className="auth-card-footer">
               <ShieldCheck size={15} aria-hidden="true" />

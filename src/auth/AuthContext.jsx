@@ -65,6 +65,8 @@ export function AuthProvider({ children }) {
     signIn: (credentials) => runAuthAction((auth) => auth.signInWithPassword(credentials)),
     signUp: (credentials) => runAuthAction((auth) => auth.signUp(credentials)),
     signOut: () => runAuthAction((auth) => auth.signOut()),
+    requestPasswordReset: (email, options) => runAuthAction((auth) => auth.resetPasswordForEmail(email, options)),
+    updatePassword: (password) => runAuthAction((auth) => auth.updateUser({ password })),
   }), [user, isLoading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
