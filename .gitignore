@@ -38,6 +38,9 @@ id_ed25519
 id_ecdsa
 secrets/
 **/secrets/
+*.dump
+*.backup
+backups/
 
 # Operating-system and editor files
 .DS_Store
