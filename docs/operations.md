@@ -10,7 +10,7 @@
 ### 2026-10-30 연결 점검
 
 - 저장소의 배포 브랜치는 `main`입니다.
-- 기존 프로젝트 주소 `blhxyoloslthrdpiwfks.supabase.co`가 DNS에서 조회되지 않아 인증·DB 연결을 확인할 수 없습니다. Supabase 연결 계정의 프로젝트 목록에도 해당 ref가 보이지 않습니다. 프로젝트가 중지·삭제·이전됐는지는 대시보드에서 확인해야 합니다.
+- 기존 프로젝트 주소 `blhxyoloslthrdpiwfks.supabase.co`가 DNS에서 조회되지 않았습니다. 대시보드에서 프로젝트가 일시 중지된 것을 확인하고 재개를 실행했습니다. 재개 후 DNS 주소가 다시 조회됐으며, 서비스와 데이터의 정상 동작은 별도 확인해야 합니다.
 - Vercel 팀 `gyeonggumuns-projects` API는 현재 연결에서 403을 반환합니다. 팀 접근 승인을 마친 뒤 Production 환경 변수와 최근 배포를 확인해야 합니다.
 - 복구 순서: Supabase 대시보드에서 **동일한 ref**의 프로젝트 상태를 확인하고 중지 상태라면 재개합니다. 다른 프로젝트로 이전했다면 데이터·마이그레이션을 검증한 후 Vercel의 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`를 새 프로젝트 값으로 갱신하고 재배포합니다. 이어서 `node scripts/check-production.mjs`와 로그인→설문 작성→비로그인 응답→결과 확인을 실행합니다. 기존 데이터의 삭제·초기화는 복구 절차에 포함하지 않습니다.
 
@@ -34,7 +34,7 @@
 
 ## 주기 점검
 
-- GitHub Actions `운영 화면 접근 점검`은 매일 09:17 KST에 로그인 HTML, 배포된 JavaScript 자산, Supabase Auth 상태 경로를 확인합니다. 수동 실행도 가능합니다. 다른 Supabase 프로젝트로 이전할 때는 `scripts/check-production.mjs`의 기본 URL도 변경하거나 `SUPABASE_URL` 환경 변수를 설정해야 합니다. **이 점검은 실제 로그인·DB 쿼리 성공을 보장하지 않습니다.** 실패 시 Actions 실행 기록을 보고 실제 장애인지 확인합니다.
+- GitHub Actions `운영 화면 접근 점검`은 매일 09:17 KST에 로그인 HTML, 배포된 JavaScript 자산, Supabase API 주소의 DNS/TLS 접근을 확인합니다. API 키 없이 조회할 때 나오는 HTTP 401은 주소 접근 성공으로 처리합니다. 수동 실행도 가능합니다. 다른 Supabase 프로젝트로 이전할 때는 `scripts/check-production.mjs`의 기본 URL도 변경하거나 `SUPABASE_URL` 환경 변수를 설정해야 합니다. **이 점검은 Auth 서비스·로그인·DB 쿼리 성공을 보장하지 않습니다.** 실패 시 Actions 실행 기록을 보고 실제 장애인지 확인합니다.
 - 매일: 배포 주소 접근, Vercel 최근 배포 상태, Supabase 프로젝트 상태와 인증/DB 오류를 확인합니다.
 - 매주: 응답 수·DB 사용량·오류 증가를 살피고 외부 공개 설문 남용 여부를 확인합니다.
 - DB 변경 전과 정해진 주기: 백업 생성·외부 보관 및 테스트 프로젝트 복원 연습을 합니다. 실제 백업 주기·담당자·보존기간은 운영자가 결정해야 합니다.
