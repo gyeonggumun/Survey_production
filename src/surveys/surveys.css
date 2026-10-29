@@ -17,7 +17,7 @@
   backdrop-filter: blur(12px);
 }
 .survey-app-brand { display: inline-flex; align-items: center; gap: 10px; color: #244338; font-size: 16px; font-weight: 800; }
-.survey-preview-mark { display: inline-block; width: 14px; height: 14px; border-radius: 5px; background: linear-gradient(145deg, #42aa83, #157b64); box-shadow: 0 3px 8px rgba(34, 139, 103, .18); }
+.survey-preview-mark { display: block; width: 22px; height: 22px; flex: none; }
 .survey-app-header nav { display: flex; align-items: center; gap: 8px; }
 .survey-app-header nav a { display: inline-flex; min-height: 38px; align-items: center; gap: 7px; padding: 0 11px; border-radius: 9px; color: #6d8076; font-size: 12px; font-weight: 650; }
 .survey-app-header nav a:hover { background: #edf7f1; color: #18816a; }

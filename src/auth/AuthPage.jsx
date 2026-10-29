@@ -161,7 +161,7 @@ export default function AuthPage() {
       <div className="auth-layout">
         <section className="auth-intro" aria-label="모아 설문 소개">
           <Link className="auth-brand" to="/auth" aria-label="모아 설문 로그인">
-            <span className="auth-brand-mark" aria-hidden="true"><span /><span /><span /></span>
+            <img className="auth-brand-mark" src="/moa-logo.svg" alt="" />
             <span className="auth-brand-name">모아<span>설문</span></span>
           </Link>
 

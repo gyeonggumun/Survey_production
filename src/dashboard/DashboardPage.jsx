@@ -131,7 +131,7 @@ export default function DashboardPage() {
           <div className="hero-orbit hero-orbit-back" />
           <div className="hero-orbit hero-orbit-front" />
           <div className="hero-sheet">
-            <div className="hero-sheet-top"><span className="hero-mini-brand"><span className="mini-brand-mark" /> 모아 설문</span><span>•••</span></div>
+            <div className="hero-sheet-top"><span className="hero-mini-brand"><img className="mini-brand-mark" src="/moa-logo.svg" alt="" /> 모아 설문</span><span>•••</span></div>
             <div className="hero-question-label">설문 미리보기</div>
             <strong className="hero-question">오늘의 경험은 어떠셨나요?</strong>
             <div className="hero-answer hero-answer-selected"><span className="hero-radio" /> 아주 만족해요 <Check size={14} /></div>

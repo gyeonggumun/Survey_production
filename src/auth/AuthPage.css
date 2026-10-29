@@ -44,21 +44,11 @@
 
 .auth-brand { position: relative; z-index: 1; display: inline-flex; width: fit-content; align-items: center; gap: 10px; }
 .auth-brand-mark {
-  display: inline-flex;
+  display: block;
   width: 36px;
   height: 36px;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 3px;
-  padding: 9px 9px;
-  border-radius: 12px;
-  background: linear-gradient(145deg, #2ca486, #147d68);
-  box-shadow: 0 5px 12px rgba(21, 134, 111, .18);
+  flex: none;
 }
-.auth-brand-mark span { display: block; width: 4px; border-radius: 5px; background: #fff; }
-.auth-brand-mark span:nth-child(1) { height: 8px; opacity: .8; }
-.auth-brand-mark span:nth-child(2) { height: 14px; }
-.auth-brand-mark span:nth-child(3) { height: 10px; opacity: .9; }
 .auth-brand-name { color: #19372f; font-size: 18px; font-weight: 800; letter-spacing: -.8px; }
 .auth-brand-name > span { margin-left: 4px; color: #5f736d; font-size: 14px; font-weight: 600; letter-spacing: -.35px; }
 

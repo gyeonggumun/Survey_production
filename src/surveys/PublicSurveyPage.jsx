@@ -182,7 +182,7 @@ export default function PublicSurveyPage() {
   return (
     <main className="public-survey-shell">
       <article className="public-survey-card">
-        <header className="public-survey-brand"><span className="survey-preview-mark" aria-hidden="true" />모아 설문</header>
+        <header className="public-survey-brand"><img className="survey-preview-mark" src="/moa-logo.svg" alt="" />모아 설문</header>
         <span className="survey-eyebrow">SURVEY</span>
         <h1>{survey.title}</h1>
         {survey.description && <p className="public-survey-description">{survey.description}</p>}

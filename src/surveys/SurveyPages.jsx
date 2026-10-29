@@ -221,7 +221,7 @@ function SurveyLivePreview({ title, description, questions }) {
     <div className="survey-live-preview-wrap">
       <div className="survey-live-preview-heading"><FileText size={17} /><span>응답자 미리보기</span></div>
       <article className="survey-live-preview">
-        <div className="survey-preview-brand"><span className="survey-preview-mark" />모아 설문</div>
+        <div className="survey-preview-brand"><img className="survey-preview-mark" src="/moa-logo.svg" alt="" />모아 설문</div>
         <h2>{title.trim() || '설문 제목을 입력해 주세요'}</h2>
         {description.trim() && <p className="survey-preview-description">{description}</p>}
         <div className="survey-preview-progress">질문 {questions.length}개</div>

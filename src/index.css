@@ -49,21 +49,11 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .sidebar-brand-row { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-mark {
-  display: inline-flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 2px;
+  display: block;
   width: 35px;
   height: 35px;
-  padding: 9px 8px;
-  border-radius: 12px;
-  background: linear-gradient(145deg, #27a487, #117d68);
-  box-shadow: 0 5px 12px rgba(21, 134, 111, 0.18);
+  flex: none;
 }
-.brand-mark span { display: block; width: 4px; border-radius: 5px; background: #fff; }
-.brand-mark span:nth-child(1) { height: 8px; opacity: .8; }
-.brand-mark span:nth-child(2) { height: 14px; }
-.brand-mark span:nth-child(3) { height: 10px; opacity: .9; }
 .brand-name { color: #19372f; font-size: 18px; font-weight: 800; letter-spacing: -0.8px; }
 .brand-name span { margin-left: 4px; color: #5f736d; font-size: 14px; font-weight: 600; letter-spacing: -0.35px; }
 .icon-button {
@@ -206,7 +196,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .hero-sheet { position: relative; z-index: 1; width: 202px; padding: 13px 14px 12px; border: 1px solid rgba(225, 237, 229, .95); border-radius: 13px; background: rgba(255,255,255,.96); box-shadow: 0 15px 34px rgba(54, 93, 73, .12); transform: rotate(-3deg); }
 .hero-sheet-top { display: flex; align-items: center; justify-content: space-between; color: #a4b0aa; }
 .hero-mini-brand { display: inline-flex; align-items: center; gap: 5px; color: #66776f; font-size: 8px; font-weight: 700; }
-.mini-brand-mark { width: 10px; height: 10px; border-radius: 3px; background: #4aab84; }
+.mini-brand-mark { display: block; width: 13px; height: 13px; }
 .hero-question-label { margin-top: 14px; color: #6eaa8b; font-size: 7px; font-weight: 700; }
 .hero-question { display: block; margin: 5px 0 9px; color: #33493e; font-size: 10px; font-weight: 700; }
 .hero-answer { display: flex; align-items: center; gap: 7px; height: 25px; margin-top: 5px; padding: 0 8px; border: 1px solid #edf1ee; border-radius: 6px; color: #78867f; font-size: 8px; }

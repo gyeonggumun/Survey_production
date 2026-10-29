@@ -19,7 +19,7 @@ export default function SurveyFlow() {
     <div className="survey-app-shell">
       <header className="survey-app-header">
         <Link className="survey-app-brand" to="/" aria-label="모아 설문 대시보드로 이동">
-          <span className="survey-preview-mark" aria-hidden="true" />
+          <img className="survey-preview-mark" src="/moa-logo.svg" alt="" />
           <span>모아 설문</span>
         </Link>
         <nav aria-label="설문 메뉴">

@@ -59,7 +59,7 @@ function App() {
       {mobileMenuOpen && <button className="sidebar-backdrop" type="button" aria-label="메뉴 닫기" onClick={() => setMobileMenuOpen(false)} />}
       <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`} aria-label="주 메뉴">
         <div className="sidebar-brand-row">
-          <Link className="brand" to="/" aria-label="모아 설문 홈"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">모아<span>설문</span></span></Link>
+          <Link className="brand" to="/" aria-label="모아 설문 홈"><img className="brand-mark" src="/moa-logo.svg" alt="" /><span className="brand-name">모아<span>설문</span></span></Link>
           <button className="icon-button sidebar-close" type="button" aria-label="메뉴 닫기" onClick={() => setMobileMenuOpen(false)}><X size={19} /></button>
         </div>
         <div className="workspace-switcher"><span className="workspace-avatar" aria-hidden="true">M</span><span className="workspace-copy"><span className="workspace-label">워크스페이스</span><strong>나의 작업 공간</strong></span><ChevronRight className="workspace-chevron" size={16} aria-hidden="true" /></div>
