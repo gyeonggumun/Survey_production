@@ -10,8 +10,10 @@
 ### 2026-10-30 연결 점검
 
 - 저장소의 배포 브랜치는 `main`입니다.
-- 기존 프로젝트 주소 `blhxyoloslthrdpiwfks.supabase.co`가 DNS에서 조회되지 않았습니다. 대시보드에서 프로젝트가 일시 중지된 것을 확인하고 재개를 실행했습니다. 재개 후 DNS 주소가 다시 조회됐으며, 서비스와 데이터의 정상 동작은 별도 확인해야 합니다.
-- Vercel 팀 `gyeonggumuns-projects` API는 현재 연결에서 403을 반환합니다. 팀 접근 승인을 마친 뒤 Production 환경 변수와 최근 배포를 확인해야 합니다.
+- 기존 프로젝트 주소 `blhxyoloslthrdpiwfks.supabase.co`가 DNS에서 조회되지 않았습니다. 대시보드에서 프로젝트의 일시 중지를 확인하고 재개했습니다. 이후 대시보드 상태 `Healthy`, 운영 사이트의 공개 설문 읽기와 비로그인 응답 제출 성공을 확인했습니다. 점검용 설문과 새 응답은 유지했습니다.
+- Vercel 대시보드에서 `survey-production`의 기존 프로덕션 배포가 `Ready`이고, Production/Preview에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`가 있는 것을 확인했습니다. 배포된 JavaScript의 Supabase URL도 위 프로젝트 ref와 일치합니다. Vercel 연결 앱의 팀 API 권한은 별도로 403을 반환하므로, API 점검은 팀 접근 승인이 반영된 뒤 다시 확인해야 합니다.
+- 로컬에는 Git에서 제외되는 `.env`에 프로젝트 URL과 publishable key를 설정했고, 개발 서버에서 같은 공개 설문이 로드되는 것을 확인했습니다. 이 파일의 실제 값은 저장소에 커밋하지 않습니다.
+- 모아 설문 SVG 로고를 로그인·대시보드·설문 화면과 파비콘에 적용했습니다. React Router 7 보안 수정 버전과 개발 도구 패치 적용 후 `npm run build`(단위 테스트 11개 포함), `npm audit --audit-level=moderate`, 로컬 공개 설문 경로가 모두 통과했습니다.
 - 복구 순서: Supabase 대시보드에서 **동일한 ref**의 프로젝트 상태를 확인하고 중지 상태라면 재개합니다. 다른 프로젝트로 이전했다면 데이터·마이그레이션을 검증한 후 Vercel의 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`를 새 프로젝트 값으로 갱신하고 재배포합니다. 이어서 `node scripts/check-production.mjs`와 로그인→설문 작성→비로그인 응답→결과 확인을 실행합니다. 기존 데이터의 삭제·초기화는 복구 절차에 포함하지 않습니다.
 
 ## DB 변경 전 백업
