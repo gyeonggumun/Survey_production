@@ -14,11 +14,13 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { supabase } from '../lib/supabase.js';
 import { summarizeQuestion } from './resultAnalytics.js';
+import { loadAllRows, loadAnswersForResponses } from './resultPagination.js';
 import SurveyShareLink from './SurveyShareLink.jsx';
 import './surveys.css';
 import './results.css';
 
 const statusLabels = { draft: '임시 저장', published: '발행됨' };
+const RESPONSES_PER_PAGE = 20;
 
 function errorText(error, fallback) {
   const detail = error?.message ? ` (${error.message})` : '';
@@ -248,6 +250,8 @@ export function SurveyResponsesPage() {
   const [questions, setQuestions] = useState([]);
   const [responses, setResponses] = useState([]);
   const [answers, setAnswers] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalResponses, setTotalResponses] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -274,7 +278,9 @@ export function SurveyResponsesPage() {
       }
       const [questionResult, responseResult] = await Promise.all([
         supabase.from('questions').select('id, prompt, type, position').eq('survey_id', surveyId).order('position', { ascending: true }),
-        supabase.from('responses').select('id, submitted_at').eq('survey_id', surveyId).order('submitted_at', { ascending: false }),
+        supabase.from('responses').select('id, submitted_at', { count: 'exact' }).eq('survey_id', surveyId)
+          .order('submitted_at', { ascending: false }).order('id', { ascending: false })
+          .range((page - 1) * RESPONSES_PER_PAGE, page * RESPONSES_PER_PAGE - 1),
       ]);
       if (!active) return;
       if (questionResult.error || responseResult.error) {
@@ -283,29 +289,30 @@ export function SurveyResponsesPage() {
         return;
       }
       const responseRows = responseResult.data ?? [];
-      const responseIds = responseRows.map((response) => response.id);
-      let answerRows = [];
-      if (responseIds.length) {
-        const { data, error: answerError } = await supabase.from('answers')
-          .select('response_id, question_id, value')
-          .in('response_id', responseIds);
-        if (!active) return;
-        if (answerError) {
-          setError(errorText(answerError, '응답 내용을 불러오지 못했어요.'));
-          setLoading(false);
-          return;
-        }
-        answerRows = data ?? [];
+      if (!responseRows.length && page > 1) {
+        setPage(Math.max(1, Math.ceil((responseResult.count ?? 0) / RESPONSES_PER_PAGE)));
+        return;
       }
+      let answerRows;
+      try {
+        answerRows = await loadAnswersForResponses(supabase, responseRows.map((response) => response.id));
+      } catch (answerError) {
+        if (!active) return;
+        setError(errorText(answerError, '응답 내용을 불러오지 못했어요.'));
+        setLoading(false);
+        return;
+      }
+      if (!active) return;
       setSurvey(surveyData);
       setQuestions(questionResult.data ?? []);
       setResponses(responseRows);
       setAnswers(answerRows);
+      setTotalResponses(responseResult.count ?? responseRows.length);
       setLoading(false);
     }
     loadResponses();
     return () => { active = false; };
-  }, [surveyId, user?.id]);
+  }, [page, surveyId, user?.id]);
 
   const responseAnswers = (responseId) => answers.filter((answer) => answer.response_id === responseId);
 
@@ -315,14 +322,14 @@ export function SurveyResponsesPage() {
   return (
     <section className="survey-page">
       <div className="survey-editor-heading">
-        <div><Link className="survey-back-link" to={`/surveys/${surveyId}`}><ArrowLeft size={15} />설문 미리보기</Link><h1>응답 결과</h1><p>{survey.title} · 총 {responses.length}건</p></div>
+        <div><Link className="survey-back-link" to={`/surveys/${surveyId}`}><ArrowLeft size={15} />설문 미리보기</Link><h1>응답 결과</h1><p>{survey.title} · 총 {totalResponses}건</p></div>
         <div className="survey-editor-actions"><Link className="survey-button survey-button-secondary" to={`/results/${surveyId}`}><BarChart3 size={15} />요약 분석</Link><Link className="survey-button survey-button-secondary" to={`/surveys/${surveyId}/edit`}>설문 편집<ArrowRight size={16} /></Link></div>
       </div>
       {responses.length ? (
         <div className="survey-response-list">
           {responses.map((response, index) => (
             <article className="survey-response-card" key={response.id}>
-              <h2>응답 {responses.length - index}</h2>
+              <h2>응답 {totalResponses - (page - 1) * RESPONSES_PER_PAGE - index}</h2>
               <time>{response.submitted_at && !Number.isNaN(new Date(response.submitted_at).getTime()) ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(response.submitted_at)) : '시간 정보 없음'}</time>
               <div className="survey-response-answers">
                 {questions.map((question) => {
@@ -335,6 +342,7 @@ export function SurveyResponsesPage() {
           ))}
         </div>
       ) : <div className="survey-empty-state"><span className="survey-empty-icon"><FileText size={25} /></span><h2>아직 제출된 응답이 없어요</h2><p>공개 응답 링크를 공유하면 제출 결과가 여기에 표시됩니다.</p><SurveyShareLink surveyId={surveyId} /></div>}
+      {totalResponses > RESPONSES_PER_PAGE && <nav className="survey-pagination" aria-label="응답 페이지"><span>{page} / {Math.ceil(totalResponses / RESPONSES_PER_PAGE)} 페이지</span><div><button className="survey-button survey-button-secondary" type="button" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>이전</button><button className="survey-button survey-button-secondary" type="button" disabled={page >= Math.ceil(totalResponses / RESPONSES_PER_PAGE)} onClick={() => setPage((current) => current + 1)}>다음</button></div></nav>}
     </section>
   );
 }
@@ -412,29 +420,38 @@ export function ResultsDetailPage() {
         setLoading(false);
         return;
       }
-      const [questionResult, responseResult] = await Promise.all([
-        supabase.from('questions').select('id, prompt, type, options, position').eq('survey_id', surveyId).order('position', { ascending: true }),
-        supabase.from('responses').select('id, submitted_at').eq('survey_id', surveyId).order('submitted_at', { ascending: false }),
-      ]);
+      let questionResult;
+      let responseRows;
+      try {
+        [questionResult, responseRows] = await Promise.all([
+          supabase.from('questions').select('id, prompt, type, options, position').eq('survey_id', surveyId).order('position', { ascending: true }),
+          loadAllRows(() => supabase.from('responses').select('id, submitted_at').eq('survey_id', surveyId)
+            .order('submitted_at', { ascending: false }).order('id', { ascending: false })),
+        ]);
+      } catch (loadError) {
+        if (!active) return;
+        setError(errorText(loadError, '응답 데이터를 읽지 못했어요.'));
+        setLoading(false);
+        return;
+      }
       if (!active) return;
-      if (questionResult.error || responseResult.error) {
+      if (questionResult.error) {
         setError('응답 데이터를 읽지 못했어요. 응답 SQL과 소유자 RLS 정책 적용을 확인해 주세요.');
         setLoading(false);
         return;
       }
-      const responseRows = responseResult.data ?? [];
       let answerRows = [];
       if (responseRows.length) {
-        const { data, error: answerError } = await supabase.from('answers')
-          .select('response_id, question_id, value')
-          .in('response_id', responseRows.map((response) => response.id));
+        let answerError;
+        try {
+          answerRows = await loadAnswersForResponses(supabase, responseRows.map((response) => response.id));
+        } catch (error) { answerError = error; }
         if (!active) return;
         if (answerError) {
           setError(errorText(answerError, '답변을 불러오지 못했어요.'));
           setLoading(false);
           return;
         }
-        answerRows = data ?? [];
       }
       setSurvey(surveyData);
       setQuestions(questionResult.data ?? []);

@@ -156,6 +156,8 @@
 .survey-results-survey-list .survey-list-item { color: #759087; }
 .survey-results-survey-list .survey-list-item:hover { color: #19866d; }
 .survey-page .survey-response-list { display: grid; gap: 12px; }
+.survey-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; color: #64786a; font-size: 12px; font-weight: 700; }
+.survey-pagination > div { display: flex; gap: 8px; }
 .survey-page .survey-response-card { padding: 18px 20px; border: 1px solid #e7ede9; border-radius: 12px; background: #fff; }
 .survey-page .survey-response-card > h2 { margin: 0; color: #3c5547; font-size: 12px; }
 .survey-page .survey-response-card > time { display: block; margin-top: 5px; color: #92a097; font-size: 9px; }
