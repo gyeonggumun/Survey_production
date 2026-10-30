@@ -92,6 +92,7 @@
 .survey-text-input { display: block; width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid #e4ebe6; border-radius: 8px; outline: 0; background: #fff; color: #40564a; font-size: 11px; transition: border .16s ease, box-shadow .16s ease; }
 .survey-text-input:focus, .survey-select:focus, .survey-live-preview textarea:focus { border-color: #91c9a8; box-shadow: 0 0 0 3px rgba(61, 153, 103, .1); }
 .survey-text-input::placeholder { color: #b0bab3; }
+.survey-text-input:disabled, .survey-select:disabled { background: #f5f8f6; color: #839489; cursor: not-allowed; }
 .survey-title-input { font-size: 13px; font-weight: 650; }
 .survey-description-input { min-height: 83px; resize: vertical; line-height: 1.6; }
 .survey-input-meta { margin-top: 5px; color: #a6b0a9; font-size: 8px; text-align: right; }
@@ -114,6 +115,7 @@
 .survey-required-toggle input:checked + .survey-toggle-track { background: #48a574; }
 .survey-required-toggle input:checked + .survey-toggle-track::after { transform: translateX(14px); }
 .survey-required-toggle input:focus-visible + .survey-toggle-track { outline: 3px solid rgba(22, 138, 116, .25); outline-offset: 2px; }
+.survey-required-toggle:has(input:disabled) { opacity: .55; cursor: not-allowed; }
 .survey-options-editor { margin-top: 14px; padding-top: 12px; border-top: 1px solid #f0f3f0; }
 .survey-options-editor > .survey-field-label { margin: 0 0 8px; }
 .survey-option-row { display: flex; align-items: center; gap: 9px; margin-top: 7px; }
@@ -123,6 +125,7 @@
 .survey-add-option, .survey-add-question-bottom { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; background: transparent; color: #438966; cursor: pointer; font-size: 10px; font-weight: 700; }
 .survey-add-option { margin: 10px 0 0 23px; padding: 3px 0; }
 .survey-add-option:hover, .survey-add-question-bottom:hover { color: #176d51; }
+.survey-add-option:disabled, .survey-add-question-bottom:disabled { color: #a4b4a8; cursor: not-allowed; }
 .survey-no-questions { padding: 26px; border: 1px dashed #dfe9e2; border-radius: 10px; color: #8b9a90; font-size: 11px; text-align: center; }
 .survey-add-question-bottom { min-height: 44px; border: 1px dashed #cfe3d5; border-radius: 9px; background: #f9fcf9; }
 .survey-editor-aside { display: grid; gap: 11px; }

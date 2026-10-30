@@ -42,7 +42,9 @@ export default function SurveyEditorPage() {
   const [pageError, setPageError] = useState('');
   const [feedback, setFeedback] = useState('');
   const [savedDraft, setSavedDraft] = useState(null);
+  const [responseCount, setResponseCount] = useState(0);
   const hasUnsavedChanges = savedDraft !== null && draftSnapshot(title, description, questions) !== savedDraft;
+  const questionsLocked = responseCount === null || responseCount > 0;
   const blocker = useBlocker(({ currentLocation, nextLocation }) =>
     hasUnsavedChanges && !skipNextBlockRef.current && currentLocation.pathname !== nextLocation.pathname);
 
@@ -67,7 +69,7 @@ export default function SurveyEditorPage() {
     skipNextBlockRef.current = false;
     if (!routeSurveyId) {
       const initialQuestions = [createQuestion()];
-      setTitle(''); setDescription(''); setQuestions(initialQuestions); setStatus('draft');
+      setTitle(''); setDescription(''); setQuestions(initialQuestions); setStatus('draft'); setResponseCount(0);
       setSavedDraft(draftSnapshot('', '', initialQuestions));
       setPageError(''); setFeedback(''); setLoading(false);
       return undefined;
@@ -87,15 +89,19 @@ export default function SurveyEditorPage() {
         setPageError(surveyError?.message || '설문을 찾을 수 없거나 열람 권한이 없어요.'); setLoading(false); return;
       }
       // 질문은 저장된 순서대로 불러와 편집 화면에 표시합니다.
-      const { data: rows, error: questionError } = await supabase.from('questions')
-        .select('id, prompt, type, required, options, position').eq('survey_id', routeSurveyId).order('position', { ascending: true });
+      const [questionResult, responseResult] = await Promise.all([
+        supabase.from('questions').select('id, prompt, type, required, options, position').eq('survey_id', routeSurveyId).order('position', { ascending: true }),
+        supabase.from('responses').select('id', { count: 'exact', head: true }).eq('survey_id', routeSurveyId),
+      ]);
       if (!active) return;
-      if (questionError) setPageError(questionError.message || '질문을 불러오지 못했어요.');
+      if (questionResult.error) setPageError(questionResult.error.message || '질문을 불러오지 못했어요.');
       else {
-        const loadedQuestions = (rows ?? []).map((question) => ({ ...question, options: Array.isArray(question.options) ? question.options : [] }));
+        const loadedQuestions = (questionResult.data ?? []).map((question) => ({ ...question, options: Array.isArray(question.options) ? question.options : [] }));
         setTitle(survey.title ?? ''); setDescription(survey.description ?? ''); setStatus(survey.status ?? 'draft');
         setQuestions(loadedQuestions);
         setSavedDraft(draftSnapshot(survey.title ?? '', survey.description ?? '', loadedQuestions));
+        setResponseCount(responseResult.error ? null : responseResult.count ?? 0);
+        if (responseResult.error) setPageError('응답 여부를 확인하지 못해 질문 구조 편집을 제한합니다. 다시 열어 확인해 주세요.');
       }
       setLoading(false);
     }
@@ -133,7 +139,10 @@ export default function SurveyEditorPage() {
       setFeedback('설문과 질문을 저장했어요.');
       return id;
     } catch (error) {
-      setPageError(error?.message || '저장하지 못했어요. 질문 저장용 Supabase migration 적용 여부를 확인해 주세요.');
+      if (/응답이 제출된 설문의 질문 구조/.test(error?.message ?? '')) {
+        setResponseCount(null);
+        setPageError('응답이 접수되어 질문 구조를 변경할 수 없어요. 새로고침해 저장된 질문을 확인한 뒤 다시 시도해 주세요.');
+      } else setPageError(error?.message || '저장하지 못했어요. 질문 저장용 Supabase migration 적용 여부를 확인해 주세요.');
       return null;
     } finally { setSaving(false); }
   }, [description, navigate, questions, routeSurveyId, title, user?.id]);
@@ -144,15 +153,21 @@ export default function SurveyEditorPage() {
       const validation = getSurveyPublishError(title, questions);
       if (validation) { setPageError(validation); return; }
     }
-    const id = await saveSurvey();
+    // 발행 취소는 질문 편집 내용을 저장하지 않아도 실행할 수 있어야 합니다.
+    const id = status === 'published' ? surveyIdRef.current : await saveSurvey();
     if (!id) return;
     setPublishing(true); setPageError('');
     const nextStatus = status === 'published' ? 'draft' : 'published';
     // 발행 최종 검증과 권한 확인은 DB의 정책 및 트리거에서도 수행됩니다.
-    const { error } = await supabase.from('surveys').update({ status: nextStatus }).eq('id', id).eq('owner_id', user.id);
-    setPublishing(false);
-    if (error) setPageError(error.message || '발행 상태를 변경하지 못했어요.');
-    else { setStatus(nextStatus); setFeedback(nextStatus === 'published' ? '설문을 발행했어요.' : '설문을 임시 저장 상태로 변경했어요.'); }
+    try {
+      const { error } = await supabase.from('surveys').update({ status: nextStatus }).eq('id', id).eq('owner_id', user.id);
+      if (error) setPageError(error.message || '발행 상태를 변경하지 못했어요.');
+      else {
+        setStatus(nextStatus);
+        setFeedback(nextStatus === 'published' ? '설문을 발행했어요.' : hasUnsavedChanges ? '발행을 취소했어요. 편집 중인 변경사항은 아직 저장되지 않았어요.' : '설문을 임시 저장 상태로 변경했어요.');
+      }
+    } catch (error) { setPageError(error?.message || '발행 상태를 변경하지 못했어요.'); }
+    finally { setPublishing(false); }
   };
 
   // ID에 해당하는 질문만 변경해 나머지 질문 상태를 유지합니다.
@@ -174,6 +189,7 @@ export default function SurveyEditorPage() {
       </div>
       {pageError && <Notice>{pageError}</Notice>}{feedback && <Notice tone="success">{feedback}</Notice>}
       {hasUnsavedChanges && <Notice tone="info">저장하지 않은 변경사항이 있어요. 화면을 떠나기 전에 저장해 주세요.</Notice>}
+      {questionsLocked && <Notice tone="info">{responseCount === null ? '응답 여부를 확인할 수 없어' : `응답 ${responseCount}건이 있어`} 질문 내용·유형·선택지와 필수 설정은 변경할 수 없어요. 질문 순서와 설문 제목·설명은 수정할 수 있습니다.</Notice>}
       {status === 'published' && <Notice tone="info">응답을 받을 수 있는 공개 설문이에요. 아래 링크를 공유하세요.</Notice>}
       {previewMode ? <div className="survey-live-preview-wrap"><div className="survey-live-preview-heading"><Eye size={17} /><span>응답자 미리보기</span></div><article className="survey-live-preview"><div className="survey-preview-brand"><img className="survey-preview-mark" src="/moa-logo.svg" alt="" />모아 설문</div><h2>{title || '설문 제목을 입력해 주세요'}</h2>{description && <p className="survey-preview-description">{description}</p>}{questions.map((question, index) => <section className="survey-preview-question" key={question.id}><h3>{index + 1}. {question.prompt || '질문 내용을 입력해 주세요'}{question.required && <span className="survey-required-mark">필수</span>}</h3>{question.type === 'text' ? <textarea disabled rows={3} placeholder="답변을 입력해 주세요" /> : (question.options ?? []).map((option, optionIndex) => <div className="survey-preview-option" key={`${question.id}-${optionIndex}`}><span className={question.type === 'single' ? 'survey-option-control survey-option-radio' : 'survey-option-control'} />{option}</div>)}</section>)}<button className="survey-button survey-button-primary survey-preview-submit" type="button" disabled>미리보기 · 제출 불가</button></article></div> : (
         <div className="survey-editor-layout">
@@ -183,19 +199,19 @@ export default function SurveyEditorPage() {
               <label className="survey-field-label" htmlFor="survey-title">설문 제목</label><input id="survey-title" className="survey-text-input survey-title-input" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} placeholder="예: 서비스 이용 경험을 들려주세요" /><div className="survey-input-meta">{title.length}/120자</div>
               <label className="survey-field-label" htmlFor="survey-description">설문 설명 <span>선택</span></label><textarea id="survey-description" className="survey-text-input survey-description-input" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} placeholder="설문의 목적이나 응답에 필요한 안내를 적어주세요." rows={3} />
             </div>
-            <div className="survey-questions-heading"><div><span className="survey-step-number">02</span><div><h2>질문</h2><p>질문 종류와 필수 응답 여부를 설정해요.</p></div></div><button className="survey-button survey-button-secondary survey-add-question" type="button" onClick={() => setQuestions((current) => [...current, createQuestion()])}><Plus size={16} />질문 추가</button></div>
+            <div className="survey-questions-heading"><div><span className="survey-step-number">02</span><div><h2>질문</h2><p>질문 종류와 필수 응답 여부를 설정해요.</p></div></div><button className="survey-button survey-button-secondary survey-add-question" type="button" disabled={questionsLocked} onClick={() => setQuestions((current) => [...current, createQuestion()])}><Plus size={16} />질문 추가</button></div>
             {!questions.length && <div className="survey-no-questions">질문을 추가하면 설문이 완성돼요.</div>}
             <div className="survey-question-stack">{questions.map((question, index) => <article className="survey-editor-card survey-question-card" key={question.id}>
               <div className="survey-question-topline"><span className="survey-question-number">질문 {String(index + 1).padStart(2, '0')}</span><div className="survey-question-tools">
                 <button className="survey-icon-action" type="button" disabled={index === 0} onClick={() => setQuestions((current) => { const next = [...current]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} aria-label={`${index + 1}번 질문 위로 이동`}><ArrowDown className="survey-arrow-up" size={16} /></button>
                 <button className="survey-icon-action" type="button" disabled={index === questions.length - 1} onClick={() => setQuestions((current) => { const next = [...current]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} aria-label={`${index + 1}번 질문 아래로 이동`}><ArrowDown size={16} /></button>
-                <button className="survey-icon-action survey-delete-action" type="button" onClick={() => setQuestions((current) => current.filter((item) => item.id !== question.id))} aria-label={`${index + 1}번 질문 삭제`}><Trash2 size={16} /></button>
+                <button className="survey-icon-action survey-delete-action" type="button" disabled={questionsLocked} onClick={() => setQuestions((current) => current.filter((item) => item.id !== question.id))} aria-label={`${index + 1}번 질문 삭제`}><Trash2 size={16} /></button>
               </div></div>
-              <label className="survey-field-label" htmlFor={`question-${question.id}`}>질문 내용</label><input id={`question-${question.id}`} className="survey-text-input" value={question.prompt} onChange={(event) => updateQuestion(question.id, { prompt: event.target.value })} maxLength={300} placeholder="무엇을 알고 싶으신가요?" />
-              <div className="survey-question-settings"><label className="survey-select-label">응답 유형<select className="survey-select" value={question.type} onChange={(event) => updateQuestion(question.id, { type: event.target.value })}><option value="single">객관식 · 하나 선택</option><option value="multiple">객관식 · 여러 개 선택</option><option value="text">주관식 · 짧은 답변</option></select></label><label className="survey-required-toggle"><input type="checkbox" checked={Boolean(question.required)} onChange={(event) => updateQuestion(question.id, { required: event.target.checked })} /><span className="survey-toggle-track" /><span>필수 응답</span></label></div>
-              {question.type !== 'text' && <div className="survey-options-editor"><span className="survey-field-label">선택지</span>{(question.options ?? []).map((option, optionIndex) => <div className="survey-option-row" key={`${question.id}-option-${optionIndex}`}><span className={question.type === 'single' ? 'survey-option-control survey-option-radio' : 'survey-option-control'} aria-hidden="true" /><input className="survey-text-input" aria-label={`${index + 1}번 질문 선택지 ${optionIndex + 1}`} value={option} maxLength={120} onChange={(event) => updateQuestion(question.id, { options: question.options.map((item, i) => i === optionIndex ? event.target.value : item) })} placeholder={`선택지 ${optionIndex + 1}`} /><button className="survey-icon-action survey-delete-action" type="button" onClick={() => updateQuestion(question.id, { options: question.options.filter((_, i) => i !== optionIndex) })} aria-label={`선택지 ${optionIndex + 1} 삭제`}><X size={15} /></button></div>)}<button className="survey-add-option" type="button" onClick={() => updateQuestion(question.id, { options: [...(question.options ?? []), ''] })}><Plus size={14} />선택지 추가</button></div>}
+              <label className="survey-field-label" htmlFor={`question-${question.id}`}>질문 내용</label><input id={`question-${question.id}`} className="survey-text-input" value={question.prompt} disabled={questionsLocked} onChange={(event) => updateQuestion(question.id, { prompt: event.target.value })} maxLength={300} placeholder="무엇을 알고 싶으신가요?" />
+              <div className="survey-question-settings"><label className="survey-select-label">응답 유형<select className="survey-select" value={question.type} disabled={questionsLocked} onChange={(event) => updateQuestion(question.id, { type: event.target.value })}><option value="single">객관식 · 하나 선택</option><option value="multiple">객관식 · 여러 개 선택</option><option value="text">주관식 · 짧은 답변</option></select></label><label className="survey-required-toggle"><input type="checkbox" checked={Boolean(question.required)} disabled={questionsLocked} onChange={(event) => updateQuestion(question.id, { required: event.target.checked })} /><span className="survey-toggle-track" /><span>필수 응답</span></label></div>
+              {question.type !== 'text' && <div className="survey-options-editor"><span className="survey-field-label">선택지</span>{(question.options ?? []).map((option, optionIndex) => <div className="survey-option-row" key={`${question.id}-option-${optionIndex}`}><span className={question.type === 'single' ? 'survey-option-control survey-option-radio' : 'survey-option-control'} aria-hidden="true" /><input className="survey-text-input" aria-label={`${index + 1}번 질문 선택지 ${optionIndex + 1}`} value={option} disabled={questionsLocked} maxLength={120} onChange={(event) => updateQuestion(question.id, { options: question.options.map((item, i) => i === optionIndex ? event.target.value : item) })} placeholder={`선택지 ${optionIndex + 1}`} /><button className="survey-icon-action survey-delete-action" type="button" disabled={questionsLocked} onClick={() => updateQuestion(question.id, { options: question.options.filter((_, i) => i !== optionIndex) })} aria-label={`선택지 ${optionIndex + 1} 삭제`}><X size={15} /></button></div>)}<button className="survey-add-option" type="button" disabled={questionsLocked} onClick={() => updateQuestion(question.id, { options: [...(question.options ?? []), ''] })}><Plus size={14} />선택지 추가</button></div>}
             </article>)}</div>
-            <button className="survey-add-question-bottom" type="button" onClick={() => setQuestions((current) => [...current, createQuestion()])}><Plus size={17} />질문 추가하기</button>
+            <button className="survey-add-question-bottom" type="button" disabled={questionsLocked} onClick={() => setQuestions((current) => [...current, createQuestion()])}><Plus size={17} />질문 추가하기</button>
           </div>
           <aside className="survey-editor-aside"><div className="survey-editor-card survey-publish-card"><span className="survey-aside-kicker">저장 상태</span><span className={`survey-status survey-status-${status}`}><span />{statusLabels[status]}</span><p>{status === 'published' ? '발행된 설문이에요. 질문 저장 시 응답 이력을 보호합니다.' : '임시 저장한 설문은 나만 볼 수 있어요.'}</p><button className="survey-button survey-button-primary survey-full-button" type="button" onClick={saveSurvey} disabled={isBusy}><Save size={16} />{saving ? '저장 중…' : '변경 내용 저장'}</button><Link className="survey-back-link survey-aside-back" to="/surveys"><ArrowLeft size={14} />목록으로 돌아가기</Link>{status === 'published' && routeSurveyId && <Link className="survey-back-link survey-aside-back" to={`/surveys/${routeSurveyId}/responses`}><ArrowRight size={14} />응답 결과 보기</Link>}</div>
             <div className="survey-tip-card"><CircleHelp size={17} /><div><strong>응답이 있는 설문</strong><p>응답이 제출된 뒤에는 질문 내용과 선택지를 바꿀 수 없어요. 새 질문지로 운영하려면 새 설문을 만들어 주세요.</p></div></div>
