@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BarChart3,
   CircleHelp,
+  Download,
   FilePlus2,
   FileText,
   LoaderCircle,
@@ -15,6 +16,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { supabase } from '../lib/supabase.js';
 import { summarizeQuestion } from './resultAnalytics.js';
 import { loadAllRows, loadAnswersForResponses } from './resultPagination.js';
+import { downloadResponsesCsv } from './resultExport.js';
 import SurveyShareLink from './SurveyShareLink.jsx';
 import './surveys.css';
 import './results.css';
@@ -475,7 +477,7 @@ export function ResultsDetailPage() {
     <section className="survey-page">
       <div className="survey-editor-heading">
         <div><Link className="survey-back-link" to="/results"><ArrowLeft size={15} />응답 분석</Link><h1>{survey.title}</h1><p>총 응답 {responses.length}건 · 질문 {questions.length}개</p></div>
-        <div className="survey-editor-actions"><Link className="survey-button survey-button-secondary" to={`/surveys/${surveyId}/responses`}>개별 응답 보기<ArrowRight size={15} /></Link><Link className="survey-button survey-button-secondary" to={`/surveys/${surveyId}/edit`}>설문 편집<ArrowRight size={15} /></Link></div>
+        <div className="survey-editor-actions">{responses.length > 0 && <button className="survey-button survey-button-secondary" type="button" onClick={() => downloadResponsesCsv(survey.title, questions, responses, answers)}><Download size={15} />CSV 내려받기</button>}<Link className="survey-button survey-button-secondary" to={`/surveys/${surveyId}/responses`}>개별 응답 보기<ArrowRight size={15} /></Link><Link className="survey-button survey-button-secondary" to={`/surveys/${surveyId}/edit`}>설문 편집<ArrowRight size={15} /></Link></div>
       </div>
       {responses.length > 0 && <div className="results-summary-grid" aria-label="응답 요약"><article className="results-summary-card"><span className="results-summary-icon"><BarChart3 size={18} /></span><span>총 응답</span><strong>{responses.length}</strong></article><article className="results-summary-card"><span className="results-summary-icon results-summary-icon-blue"><FileText size={18} /></span><span>질문 수</span><strong>{questions.length}</strong></article><article className="results-summary-card"><span className="results-summary-icon results-summary-icon-orange"><FileText size={18} /></span><span>최근 응답</span><strong className="results-date-value">{responses[0]?.submitted_at && !Number.isNaN(new Date(responses[0].submitted_at).getTime()) ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(responses[0].submitted_at)) : '시간 정보 없음'}</strong></article></div>}
       {responses.length > 0 ? questionSummaries.map((question, index) => (
