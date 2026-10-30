@@ -11,6 +11,14 @@ test('result rows continue past one Data API page', async () => {
   assert.equal(rows.at(-1).id, 1000);
 });
 
+test('result rows continue when the configured server limit is smaller than the requested range', async () => {
+  const source = Array.from({ length: 7 }, (_, id) => ({ id }));
+  const rows = await loadAllRows(() => ({
+    range: async (start) => ({ data: source.slice(start, start + 2), error: null }),
+  }), 5);
+  assert.deepEqual(rows.map((row) => row.id), [0, 1, 2, 3, 4, 5, 6]);
+});
+
 test('answers are complete when response and row batches both overflow', async () => {
   const responseIds = Array.from({ length: 41 }, (_, index) => `response-${index}`);
   const source = responseIds.flatMap((responseId) => Array.from({ length: 30 }, (_, index) => ({

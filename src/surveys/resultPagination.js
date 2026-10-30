@@ -4,12 +4,13 @@ const RESPONSE_ID_BATCH_SIZE = 40;
 // Data API의 한 번에 반환하는 행 수와 관계없이 모든 페이지를 읽습니다.
 export async function loadAllRows(makeQuery, batchSize = ROW_BATCH_SIZE) {
   const rows = [];
-  for (let offset = 0; ; offset += batchSize) {
-    const { data, error } = await makeQuery().range(offset, offset + batchSize - 1);
+  for (let offset = 0; ;) {
+    const { data, error, count } = await makeQuery().range(offset, offset + batchSize - 1);
     if (error) throw error;
     const page = data ?? [];
     rows.push(...page);
-    if (page.length < batchSize) return rows;
+    if (!page.length || (typeof count === 'number' && rows.length >= count)) return rows;
+    offset += page.length;
   }
 }
 
