@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, Check, CircleHelp, Eye, LoaderCircle, Plus, Save, Trash2, X } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { supabase } from '../lib/supabase.js';
 import { getSurveyPublishError } from './surveyValidation.js';
@@ -15,6 +15,10 @@ const createId = () => globalThis.crypto?.randomUUID?.() ?? 'xxxxxxxx-xxxx-4xxx-
   return (char === 'x' ? random : (random & 0x3) | 0x8).toString(16);
 });
 const createQuestion = () => ({ id: createId(), prompt: '', type: 'single', required: true, options: ['선택지 1', '선택지 2'] });
+const draftSnapshot = (title, description, questions) => JSON.stringify({
+  title, description,
+  questions: questions.map(({ id, prompt, type, required, options }) => ({ id, prompt, type, required, options })),
+});
 
 function Notice({ children, tone = 'error' }) {
   return <div className={`survey-notice survey-notice-${tone}`} role={tone === 'error' ? 'alert' : 'status'}>{children}</div>;
@@ -26,6 +30,7 @@ export default function SurveyEditorPage() {
   const navigate = useNavigate();
   // 새 설문 저장 직후에도 생성된 ID를 참조해 같은 화면에서 이어서 저장합니다.
   const surveyIdRef = useRef(routeSurveyId ?? null);
+  const skipNextBlockRef = useRef(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState([createQuestion()]);
@@ -36,11 +41,34 @@ export default function SurveyEditorPage() {
   const [previewMode, setPreviewMode] = useState(false);
   const [pageError, setPageError] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [savedDraft, setSavedDraft] = useState(null);
+  const hasUnsavedChanges = savedDraft !== null && draftSnapshot(title, description, questions) !== savedDraft;
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    hasUnsavedChanges && !skipNextBlockRef.current && currentLocation.pathname !== nextLocation.pathname);
+
+  useEffect(() => {
+    const warnBeforeLeave = (event) => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeLeave);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeave);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    if (window.confirm('저장하지 않은 변경사항이 있어요. 이 페이지를 나가면 변경 내용이 사라집니다. 이동할까요?')) blocker.proceed();
+    else blocker.reset();
+  }, [blocker]);
 
   useEffect(() => {
     surveyIdRef.current = routeSurveyId ?? null;
+    skipNextBlockRef.current = false;
     if (!routeSurveyId) {
-      setTitle(''); setDescription(''); setQuestions([createQuestion()]); setStatus('draft');
+      const initialQuestions = [createQuestion()];
+      setTitle(''); setDescription(''); setQuestions(initialQuestions); setStatus('draft');
+      setSavedDraft(draftSnapshot('', '', initialQuestions));
       setPageError(''); setFeedback(''); setLoading(false);
       return undefined;
     }
@@ -64,8 +92,10 @@ export default function SurveyEditorPage() {
       if (!active) return;
       if (questionError) setPageError(questionError.message || '질문을 불러오지 못했어요.');
       else {
+        const loadedQuestions = (rows ?? []).map((question) => ({ ...question, options: Array.isArray(question.options) ? question.options : [] }));
         setTitle(survey.title ?? ''); setDescription(survey.description ?? ''); setStatus(survey.status ?? 'draft');
-        setQuestions((rows ?? []).map((question) => ({ ...question, options: Array.isArray(question.options) ? question.options : [] })));
+        setQuestions(loadedQuestions);
+        setSavedDraft(draftSnapshot(survey.title ?? '', survey.description ?? '', loadedQuestions));
       }
       setLoading(false);
     }
@@ -94,8 +124,12 @@ export default function SurveyEditorPage() {
       });
       if (saveError) throw saveError;
       surveyIdRef.current = id;
+      setSavedDraft(draftSnapshot(title, description, questions));
 
-      if (!routeSurveyId) navigate(`/surveys/${id}/edit`, { replace: true });
+      if (!routeSurveyId) {
+        skipNextBlockRef.current = true;
+        navigate(`/surveys/${id}/edit`, { replace: true });
+      }
       setFeedback('설문과 질문을 저장했어요.');
       return id;
     } catch (error) {
@@ -139,6 +173,7 @@ export default function SurveyEditorPage() {
         </div>
       </div>
       {pageError && <Notice>{pageError}</Notice>}{feedback && <Notice tone="success">{feedback}</Notice>}
+      {hasUnsavedChanges && <Notice tone="info">저장하지 않은 변경사항이 있어요. 화면을 떠나기 전에 저장해 주세요.</Notice>}
       {status === 'published' && <Notice tone="info">응답을 받을 수 있는 공개 설문이에요. 아래 링크를 공유하세요.</Notice>}
       {previewMode ? <div className="survey-live-preview-wrap"><div className="survey-live-preview-heading"><Eye size={17} /><span>응답자 미리보기</span></div><article className="survey-live-preview"><div className="survey-preview-brand"><img className="survey-preview-mark" src="/moa-logo.svg" alt="" />모아 설문</div><h2>{title || '설문 제목을 입력해 주세요'}</h2>{description && <p className="survey-preview-description">{description}</p>}{questions.map((question, index) => <section className="survey-preview-question" key={question.id}><h3>{index + 1}. {question.prompt || '질문 내용을 입력해 주세요'}{question.required && <span className="survey-required-mark">필수</span>}</h3>{question.type === 'text' ? <textarea disabled rows={3} placeholder="답변을 입력해 주세요" /> : (question.options ?? []).map((option, optionIndex) => <div className="survey-preview-option" key={`${question.id}-${optionIndex}`}><span className={question.type === 'single' ? 'survey-option-control survey-option-radio' : 'survey-option-control'} />{option}</div>)}</section>)}<button className="survey-button survey-button-primary survey-preview-submit" type="button" disabled>미리보기 · 제출 불가</button></article></div> : (
         <div className="survey-editor-layout">
