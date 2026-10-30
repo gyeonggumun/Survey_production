@@ -65,7 +65,11 @@
 .demo-option:hover, .demo-option-selected { border-color: #65b48b; background: #f1faf4; }
 .demo-option input { width: 16px; height: 16px; accent-color: #18896d; }
 .demo-option svg { margin-left: auto; color: #18896d; }
+.demo-textarea { width: 100%; min-height: 96px; margin: 20px 0 22px; padding: 13px; resize: vertical; border: 1px solid #e0ebe3; border-radius: 10px; background: #fff; color: #385b46; font: inherit; font-size: 14px; }
+.demo-textarea:focus { outline: 2px solid #65b48b; outline-offset: 2px; }
+.demo-card form > .demo-error { margin: -10px 0 20px; color: #b43d3d; }
 .demo-submit { width: 100%; }
+.demo-result-heading { margin: 28px 0 8px; color: #385b46; font-size: 15px; }
 .demo-result-list { display: grid; gap: 17px; margin: 27px 0 20px; }
 .demo-result > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; color: #526d5c; font-size: 13px; }
 .demo-result strong { color: #18896d; }
@@ -76,6 +80,7 @@
 .demo-next { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-bottom: 60px; padding: 25px 30px; border: 1px solid #d7e8dc; border-radius: 16px; background: #eaf6ee; }
 .demo-next strong { font-size: 17px; }
 .demo-next p { margin: 6px 0 0; color: #6e8476; font-size: 13px; }
+.demo-next-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 .welcome-site a:focus-visible, .welcome-site button:focus-visible, .welcome-site input:focus-visible { outline: 3px solid #18896d; outline-offset: 3px; }
 
