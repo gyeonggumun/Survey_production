@@ -62,6 +62,8 @@
 .auth-benefit-list li { display: flex; align-items: center; gap: 10px; color: #597366; font-size: 10px; font-weight: 600; line-height: 1.5; }
 .auth-benefit-list li > span { display: grid; flex: 0 0 21px; width: 21px; height: 21px; place-items: center; border: 1px solid #d6e9da; border-radius: 7px; background: rgba(255,255,255,.75); color: #4c9a70; }
 .auth-intro-footnote { position: relative; z-index: 1; display: flex; align-items: flex-start; gap: 8px; color: #81938a; font-size: 9px; line-height: 1.6; }
+.auth-demo-link { display: inline-flex; align-items: center; gap: 7px; margin-top: 27px; color: #176b55; font-size: 11px; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+.auth-demo-link:focus-visible { outline: 2px solid #176b55; outline-offset: 4px; }
 .auth-intro-footnote svg { flex: 0 0 16px; color: #6da183; }
 .auth-decoration { position: absolute; z-index: 0; width: 9px; height: 9px; border-radius: 3px; background: #e4ba77; transform: rotate(28deg); }
 .auth-decoration-one { top: 205px; right: 58px; }

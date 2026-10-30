@@ -4,6 +4,7 @@ import PublicSurveyPage from '../surveys/PublicSurveyPage.jsx';
 import SurveyFlow from '../surveys/SurveyFlow.jsx';
 import { useAuth } from './AuthContext.jsx';
 import AuthPage from './AuthPage.jsx';
+import { DemoPage, WelcomePage } from '../landing/WelcomePages.jsx';
 
 function SessionLoadingScreen() {
   return (
@@ -28,6 +29,8 @@ export default function AuthGate() {
     return <Routes><Route path="/s/:surveyId" element={<PublicSurveyPage />} /></Routes>;
   }
 
+  if (location.pathname === '/demo') return <DemoPage />;
+
   if (isLoading) return <SessionLoadingScreen />;
 
   // 비밀번호 복구 링크는 세션이 생성된 뒤에도 재설정 화면에 남아야 합니다.
@@ -36,6 +39,8 @@ export default function AuthGate() {
   if (location.pathname === '/auth') {
     return user ? <Navigate to="/" replace /> : <AuthPage key="auth" />;
   }
+
+  if (location.pathname === '/' && !user) return <WelcomePage />;
 
   if (!user) {
     return <Navigate to="/auth" replace state={{ from: location }} />;

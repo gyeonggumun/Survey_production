@@ -57,7 +57,7 @@ export default function AuthPage() {
   const { user, isConfigured, signIn, signUp, requestPasswordReset, updatePassword } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [mode, setMode] = useState(location.pathname === '/reset-password' ? 'reset-password' : 'login');
+  const [mode, setMode] = useState(location.pathname === '/reset-password' ? 'reset-password' : new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -160,7 +160,7 @@ export default function AuthPage() {
     <main className="auth-page">
       <div className="auth-layout">
         <section className="auth-intro" aria-label="모아 설문 소개">
-          <Link className="auth-brand" to="/auth" aria-label="모아 설문 로그인">
+          <Link className="auth-brand" to="/" aria-label="모아 설문 홈">
             <img className="auth-brand-mark" src="/moa-logo.svg" alt="" />
             <span className="auth-brand-name">모아<span>설문</span></span>
           </Link>
@@ -174,6 +174,7 @@ export default function AuthPage() {
               <li><span><Check size={14} aria-hidden="true" /></span>로그인 후 나만의 작업 화면으로 이동해요</li>
               <li><span><Check size={14} aria-hidden="true" /></span>모바일에서도 편안하게 사용할 수 있어요</li>
             </ul>
+            <Link className="auth-demo-link" to="/demo">가입 전에 설문 체험하기 <ArrowRight size={15} aria-hidden="true" /></Link>
           </div>
 
           <div className="auth-intro-footnote">
