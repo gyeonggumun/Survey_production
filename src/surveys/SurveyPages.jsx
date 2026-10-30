@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BarChart3,
   CircleHelp,
+  Copy,
   Download,
   FilePlus2,
   FileText,
@@ -11,12 +12,13 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { supabase } from '../lib/supabase.js';
 import { summarizeQuestion } from './resultAnalytics.js';
 import { loadAllRows, loadAnswersForResponses } from './resultPagination.js';
 import { downloadResponsesCsv } from './resultExport.js';
+import { createSurveyCopyPayload } from './surveyCopy.js';
 import SurveyShareLink from './SurveyShareLink.jsx';
 import './surveys.css';
 import './results.css';
@@ -42,12 +44,14 @@ function DatabaseNotice({ children, tone = 'error' }) {
 
 export function SurveyListPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [deletingId, setDeletingId] = useState('');
+  const [copyingId, setCopyingId] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -96,6 +100,25 @@ export function SurveyListPage() {
     else setReloadKey((value) => value + 1);
   };
 
+  const copySurvey = async (survey) => {
+    if (copyingId) return;
+    setCopyingId(survey.id);
+    setLoadError('');
+    try {
+      const { data: source, error: surveyError } = await supabase.from('surveys')
+        .select('title, description').eq('id', survey.id).eq('owner_id', user.id).maybeSingle();
+      if (surveyError || !source) throw surveyError ?? new Error('원본 설문을 찾지 못했어요.');
+      const { data: questions, error: questionError } = await supabase.from('questions')
+        .select('prompt, type, required, options').eq('survey_id', survey.id).order('position', { ascending: true });
+      if (questionError) throw questionError;
+      const { data: newId, error: copyError } = await supabase.rpc('save_survey', createSurveyCopyPayload(source, questions ?? []));
+      if (copyError || !newId) throw copyError ?? new Error('복사본 ID를 받지 못했어요.');
+      navigate(`/surveys/${newId}/edit`);
+    } catch (error) {
+      setLoadError(errorText(error, '설문을 복제하지 못했어요.'));
+    } finally { setCopyingId(''); }
+  };
+
   return (
     <section className="survey-page">
       <div className="survey-page-heading">
@@ -136,6 +159,7 @@ export function SurveyListPage() {
                 <div className="survey-list-actions">
                   <Link className="survey-icon-action" to={`/surveys/${survey.id}`} aria-label={`${survey.title} 미리보기`} title="미리보기"><span className="sr-only">미리보기</span><FileText size={17} /></Link>
                   <Link className="survey-icon-action" to={`/surveys/${survey.id}/edit`} aria-label={`${survey.title} 수정`} title="수정"><span className="sr-only">수정</span><ArrowRight size={17} /></Link>
+                  <button className="survey-icon-action" type="button" disabled={copyingId === survey.id} onClick={() => copySurvey(survey)} aria-label={`${survey.title} 복제`} title="복제"><span className="sr-only">복제</span>{copyingId === survey.id ? <LoaderCircle className="survey-spinner" size={16} /> : <Copy size={16} />}</button>
                   <Link className="survey-icon-action" to={`/surveys/${survey.id}/responses`} aria-label={`${survey.title} 응답 결과`} title="응답 결과"><span className="sr-only">응답 결과</span><BarChart3 size={16} /></Link>
                   <button className="survey-icon-action survey-delete-action" type="button" disabled={deletingId === survey.id} onClick={() => deleteSurvey(survey)} aria-label={`${survey.title} 삭제`} title="삭제"><span className="sr-only">삭제</span><Trash2 size={16} /></button>
                 </div>
